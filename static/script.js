@@ -26,6 +26,23 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     updateTime(); setInterval(updateTime, 60000);
 
+    // 1.5. Mostra / Nascondi Password
+    const togglePasswordBtn = document.getElementById('toggle-password');
+    if(togglePasswordBtn) {
+        togglePasswordBtn.addEventListener('click', () => {
+            const pwdObj = document.getElementById('password');
+            if(pwdObj.type === 'password') {
+                pwdObj.type = 'text';
+                togglePasswordBtn.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
+                togglePasswordBtn.style.color = 'var(--primary)';
+            } else {
+                pwdObj.type = 'password';
+                togglePasswordBtn.innerHTML = '<i class="fa-solid fa-eye"></i>';
+                togglePasswordBtn.style.color = 'var(--text-muted)';
+            }
+        });
+    }
+
     // 2. Navigazione Veloce
     DOM.navItems.forEach(item => {
         item.addEventListener('click', (e) => {

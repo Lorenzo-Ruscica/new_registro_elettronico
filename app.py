@@ -3,7 +3,9 @@ from MastercomAPI import MastercomAPI
 import os
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+# Usiamo una chiave statica su Vercel, altrimenti a ogni richiesta serverless
+# genera un nuovo os.urandom(24) e annulla la sessione dell'utente!
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "chiave_super_segreta_statica_vercel_123")
 
 @app.route("/")
 def index():
