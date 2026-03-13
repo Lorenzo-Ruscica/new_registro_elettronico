@@ -34,6 +34,20 @@ class MastercomAPI:
             }
             return True
         except (TypeError, KeyError):
+            # --- SISTEMA DI DEBUG ---
+            print("\n[!] ERRORE: Token non trovati. Analisi della risposta in corso...")
+            
+            # Cerchiamo se c'è un messaggio di errore esplicito nella pagina
+            errore_testo = soup.find('div', class_='alert') or soup.find('div', class_='error')
+            if errore_testo:
+                print(f"Messaggio dal server: {errore_testo.text.strip()}")
+            
+            # Salviamo l'intero HTML per capire in che pagina siamo finiti
+            with open("errore_login.html", "w", encoding="utf-8") as f:
+                f.write(res.text)
+                
+            print("[i] Ho salvato la pagina che Mastercom mi ha restituito nel file 'errore_login.html'.")
+            print("[i] Aprilo facendo doppio clic (si aprirà su Chrome/Edge) per vedere dove si è bloccato il server!\n")
             return False
 
 # --- SEZIONE VOTI ---
