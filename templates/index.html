@@ -1,266 +1,223 @@
 <!DOCTYPE html>
 <html lang="it">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>EduTrack | Portale Studente</title>
-    <!-- Font moderni in stile Apple / SF Pro -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Icone Classiche ma pulite -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Chart.js -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+    <title>EduTrack — Registro Elettronico</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-
 <body>
 
-    <!-- Schermata di Login - Stile Apple ID -->
+    <!-- ============= LOGIN ============= -->
     <div id="login-screen" class="screen active">
-        <div class="login-container fade-up-enter">
-            <div class="login-logo">
-                <i class="fa-solid fa-graduation-cap"></i>
+        <div class="login-card anim-scale-in">
+            <div class="login-logo-wrap">
+                <div class="login-logo"><i class="fa-solid fa-graduation-cap"></i></div>
             </div>
-            <h1 class="login-title">EduTrack</h1>
-            <p class="login-subtitle">Accedi al tuo registro elettronico personale</p>
-
-            <form id="login-form">
-                <div class="apple-input-group">
-                    <input type="text" id="username" class="apple-input" placeholder="Codice Studente" required>
-                </div>
-                <div class="apple-input-group password-group">
-                    <input type="password" id="password" class="apple-input" placeholder="Password" required>
-                    <button type="button" class="eye-btn" id="toggle-password"><i class="fa-solid fa-eye"></i></button>
-                </div>
-                <div class="error-msg" id="login-error"></div>
-
-                <button type="submit" class="btn-apple btn-primary" id="login-btn">
-                    <span class="btn-text">Continua</span>
-                    <div class="spinner" style="display: none;"></div>
-                </button>
-            </form>
-
-            <div class="login-footer">Protezione dati tramite crittografia standard d'istituto.</div>
-        </div>
-    </div>
-
-    <!-- Schermata Caricamento -->
-    <div id="loading-screen" class="screen">
-        <div class="loader-container">
-            <div class="apple-spinner"></div>
-            <h3 class="loader-text">Aggiornamento...</h3>
-            <p id="sync-status" class="loader-subtext">Sincronizzazione dati con il server d'istituto</p>
-        </div>
-    </div>
-
-    <!-- App Principale - Layout Mac/iPad -->
-    <div id="app-screen" class="screen main-wrapper">
-
-        <!-- Sidebar - Stile macOS Dark / Clean -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <div class="brand">
-                    <i class="fa-solid fa-graduation-cap text-primary"></i>
-                    <span>EduTrack</span>
-                </div>
-            </div>
-
-            <nav class="sidebar-nav">
-                <p class="nav-label">Menu Principale</p>
-                <a href="#" class="nav-item active" data-target="dashboard">
-                    <i class="fa-solid fa-shapes"></i> Dashboard
-                </a>
-                <a href="#" class="nav-item" data-target="voti">
-                    <i class="fa-solid fa-chart-simple"></i> Valutazioni
-                </a>
-                <a href="#" class="nav-item" data-target="agenda">
-                    <i class="fa-regular fa-calendar"></i> Calendario
-                </a>
-                <a href="#" class="nav-item" data-target="compiti">
-                    <i class="fa-solid fa-check-double"></i> Compiti
-                </a>
-                <a href="#" class="nav-item" data-target="assenze">
-                    <i class="fa-solid fa-user-clock"></i> Registro Assenze
-                </a>
-                <a href="#" class="nav-item" data-target="note">
-                    <i class="fa-solid fa-circle-exclamation"></i> Note
-                </a>
-            </nav>
-
-            <div class="sidebar-footer">
-                <div class="user-profile">
-                    <div class="user-icon"><i class="fa-solid fa-user"></i></div>
-                    <div class="user-info">
-                        <strong id="user-display">Studente</strong>
-                        <span>Matricola</span>
+            <h1>Accedi a EduTrack</h1>
+            <p class="login-sub">Il tuo registro personale, completamente ridisegnato.</p>
+            <form id="login-form" autocomplete="off">
+                <div class="field">
+                    <label>Codice Studente</label>
+                    <div class="input-box">
+                        <i class="fa-regular fa-user"></i>
+                        <input type="text" id="username" placeholder="Es. 616709" required>
                     </div>
                 </div>
-                <button id="logout-btn" class="logout-icon" title="Esci"><i
-                        class="fa-solid fa-arrow-right-from-bracket"></i></button>
+                <div class="field">
+                    <label>Password</label>
+                    <div class="input-box">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="password" placeholder="Inserisci la password" required>
+                        <button type="button" class="eye-toggle" id="toggle-pw"><i class="fa-solid fa-eye"></i></button>
+                    </div>
+                </div>
+                <p class="err" id="login-error"></p>
+                <button type="submit" class="btn-main" id="login-btn">
+                    <span class="btn-label">Continua</span>
+                    <span class="btn-spin" style="display:none"></span>
+                </button>
+            </form>
+            <p class="login-foot">I tuoi dati sono protetti da crittografia end-to-end.</p>
+        </div>
+    </div>
+
+    <!-- ============= LOADING ============= -->
+    <div id="loading-screen" class="screen">
+        <div class="loader-wrap">
+            <div class="dot-spinner"><div></div><div></div><div></div></div>
+            <h3>Sincronizzazione in corso</h3>
+            <p id="sync-status">Connessione al server d'istituto...</p>
+        </div>
+    </div>
+
+    <!-- ============= APP ============= -->
+    <div id="app-screen" class="screen app-shell">
+
+        <!-- MOBILE BOTTOM NAV (visibile solo su mobile) -->
+        <nav class="mobile-nav">
+            <a href="#" class="mob-item active" data-target="dashboard"><i class="fa-solid fa-shapes"></i><span>Home</span></a>
+            <a href="#" class="mob-item" data-target="voti"><i class="fa-solid fa-chart-simple"></i><span>Voti</span></a>
+            <a href="#" class="mob-item" data-target="agenda"><i class="fa-regular fa-calendar"></i><span>Agenda</span></a>
+            <a href="#" class="mob-item" data-target="compiti"><i class="fa-solid fa-check-double"></i><span>Compiti</span></a>
+            <a href="#" class="mob-item" data-target="assenze"><i class="fa-solid fa-user-clock"></i><span>Assenze</span></a>
+            <a href="#" class="mob-item" data-target="note"><i class="fa-solid fa-bell"></i><span>Note</span></a>
+        </nav>
+
+        <!-- SIDEBAR DESKTOP -->
+        <aside class="sidebar">
+            <div class="s-brand"><i class="fa-solid fa-graduation-cap"></i><span>EduTrack</span></div>
+            <p class="s-label">Navigazione</p>
+            <nav class="s-nav">
+                <a href="#" class="s-link active" data-target="dashboard"><i class="fa-solid fa-shapes"></i>Dashboard</a>
+                <a href="#" class="s-link" data-target="voti"><i class="fa-solid fa-chart-simple"></i>Valutazioni</a>
+                <a href="#" class="s-link" data-target="agenda"><i class="fa-regular fa-calendar"></i>Calendario</a>
+                <a href="#" class="s-link" data-target="compiti"><i class="fa-solid fa-check-double"></i>Compiti</a>
+                <a href="#" class="s-link" data-target="assenze"><i class="fa-solid fa-user-clock"></i>Registro Assenze</a>
+                <a href="#" class="s-link" data-target="note"><i class="fa-solid fa-bell"></i>Note</a>
+            </nav>
+            <div class="s-footer">
+                <div class="s-user">
+                    <div class="s-avatar"><i class="fa-solid fa-user"></i></div>
+                    <div><strong id="user-display">Studente</strong><small>Online</small></div>
+                </div>
+                <button class="s-logout" id="logout-btn"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
             </div>
         </aside>
 
-        <!-- Main Content Area -->
-        <main class="content-area">
-
-            <!-- Header Superiore -->
-            <header class="top-nav blur-header">
-                <h2 id="page-title" class="page-title">Dashboard</h2>
-                <div class="top-nav-actions">
-                    <div class="apple-search">
+        <!-- MAIN -->
+        <main class="main">
+            <!-- STICKY TOPBAR -->
+            <header class="topbar">
+                <h2 class="topbar-title" id="page-title">Dashboard</h2>
+                <div class="topbar-r">
+                    <div class="searchbox">
                         <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="text" id="global-search" placeholder="Cerca nel registro...">
+                        <input type="text" id="global-search" placeholder="Cerca voti, materie...">
                     </div>
-                    <div class="date-display" id="current-date">--</div>
+                    <span class="today-badge" id="current-date"></span>
                 </div>
             </header>
 
-            <div class="scroll-container">
+            <div class="page-scroll">
 
-                <!-- 1. DASHBOARD -->
-                <section id="view-dashboard" class="app-view active">
-
-                    <div class="hero-section stagger-1">
-                        <h1>Benvenuto, <span class="text-primary">ecco il tuo andamento.</span></h1>
-                        <p class="hero-sub">Tutte le informazioni sulla tua carriera scolastica, in tempo reale.</p>
+                <!-- ===== DASHBOARD ===== -->
+                <section id="view-dashboard" class="view active">
+                    <div class="v-hero reveal">
+                        <h1>Buongiorno, <span class="gradient-text">ecco il tuo riepilogo.</span></h1>
+                        <p>Controlla i tuoi voti, compiti e assenze in tempo reale.</p>
                     </div>
 
-                    <div class="metrics-grid">
-                        <div class="metric-card hover-lift stagger-2">
-                            <i class="fa-solid fa-star metric-icon text-primary"></i>
-                            <div class="metric-value" id="dash-media">--</div>
-                            <div class="metric-label">Media Generale</div>
-                            <div class="metric-trend" id="media-status">In attesa</div>
+                    <div class="kpi-row">
+                        <div class="kpi reveal" data-delay="0.05">
+                            <div class="kpi-icon blue"><i class="fa-solid fa-star"></i></div>
+                            <div class="kpi-body">
+                                <small>Media Generale</small>
+                                <h2 id="dash-media">--</h2>
+                                <span class="kpi-tag" id="media-status">Caricamento...</span>
+                            </div>
                         </div>
-                        <div class="metric-card hover-lift stagger-3">
-                            <i class="fa-solid fa-thumbtack metric-icon" style="color:#000;"></i>
-                            <div class="metric-value" id="dash-compiti">--</div>
-                            <div class="metric-label">Compiti / Studio</div>
-                            <div class="metric-trend text-primary">In agenda</div>
+                        <div class="kpi reveal" data-delay="0.1">
+                            <div class="kpi-icon dark"><i class="fa-solid fa-pen-ruler"></i></div>
+                            <div class="kpi-body">
+                                <small>Compiti da fare</small>
+                                <h2 id="dash-compiti">--</h2>
+                                <span class="kpi-tag blue-tag">In agenda</span>
+                            </div>
                         </div>
-                        <div class="metric-card hover-lift stagger-4">
-                            <i class="fa-solid fa-user-slash metric-icon" style="color:#000;"></i>
-                            <div class="metric-value" id="dash-assenze">--</div>
-                            <div class="metric-label">Assenze Totali</div>
-                            <div class="metric-trend" id="dash-giustifiche">--</div>
+                        <div class="kpi reveal" data-delay="0.15">
+                            <div class="kpi-icon red"><i class="fa-solid fa-user-xmark"></i></div>
+                            <div class="kpi-body">
+                                <small>Assenze Totali</small>
+                                <h2 id="dash-assenze">--</h2>
+                                <span class="kpi-tag" id="dash-giustifiche">--</span>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="bento-grid stagger-5">
-                        <div class="bento-card bento-chart hover-scale">
-                            <div class="bento-header">
-                                <h3>Trend Valutazioni</h3>
-                            </div>
-                            <div class="chart-canvas-container">
-                                <canvas id="dashChart"></canvas>
-                            </div>
+                    <div class="split-2 reveal" data-delay="0.2">
+                        <div class="card">
+                            <div class="card-head"><h3>Andamento Recente</h3><button class="pill-btn" onclick="document.querySelector('.s-link[data-target=voti],.mob-item[data-target=voti]').click()">Vedi tutto →</button></div>
+                            <div class="chart-box"><canvas id="dashChart"></canvas></div>
                         </div>
+                        <div class="card">
+                            <div class="card-head"><h3>Prossimi Impegni</h3></div>
+                            <ul class="event-list" id="dash-agenda"></ul>
+                        </div>
+                    </div>
 
-                        <div class="bento-card bento-agenda hover-scale">
-                            <div class="bento-header flex-between">
-                                <h3>Oggi & Domani</h3>
-                                <button class="btn-icon-minimal"
-                                    onclick="document.querySelector('[data-target=\'agenda\']').click()"><i
-                                        class="fa-solid fa-plus"></i></button>
-                            </div>
-                            <ul class="clean-list" id="dash-agenda"></ul>
+                    <!-- EXTRA: Mini medie radar -->
+                    <div class="card reveal" data-delay="0.25" style="margin-top:24px">
+                        <div class="card-head"><h3>Panoramica Discipline</h3></div>
+                        <div class="chart-box-sm"><canvas id="radarChart"></canvas></div>
+                    </div>
+                </section>
+
+                <!-- ===== VOTI ===== -->
+                <section id="view-voti" class="view">
+                    <div class="action-row reveal">
+                        <div class="select-wrap">
+                            <select id="filter-materia" class="fancy-select"><option value="all">Tutte le materie</option></select>
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </div>
+                        <button class="btn-sec" id="sort-voti"><i class="fa-solid fa-arrow-up-wide-short"></i> Ordina</button>
+                    </div>
+                    <div class="card reveal mb-24" data-delay="0.05">
+                        <div class="card-head"><h3>Media per Materia</h3></div>
+                        <div class="chart-box"><canvas id="materieChart"></canvas></div>
+                    </div>
+                    <div class="card reveal p-0" data-delay="0.1">
+                        <div class="tbl-wrap">
+                            <table class="tbl">
+                                <thead><tr><th>Data</th><th>Materia</th><th>Voto</th><th>Esito</th></tr></thead>
+                                <tbody id="voti-body"></tbody>
+                            </table>
                         </div>
                     </div>
                 </section>
 
-                <!-- 2. VOTI -->
-                <section id="view-voti" class="app-view">
-                    <div class="action-bar stagger-1">
-                        <div class="apple-select-wrapper">
-                            <select id="filter-materia" class="apple-select">
-                                <option value="all">Tutte le materie</option>
-                            </select>
-                            <i class="fa-solid fa-chevron-down select-arrow"></i>
-                        </div>
-                        <button class="btn-apple btn-secondary" id="sort-voti">
-                            <i class="fa-solid fa-arrow-up-wide-short"></i> Ordina
-                        </button>
-                    </div>
-
-                    <div class="bento-card mb-24 stagger-2 hover-scale">
-                        <div class="bento-header">
-                            <h3>Riepilogo per Materia</h3>
-                        </div>
-                        <div style="height: 350px; padding: 20px;">
-                            <canvas id="materieChart"></canvas>
-                        </div>
-                    </div>
-
-                    <div class="bento-card stagger-3 p-0 pb-10 table-container">
-                        <table class="apple-table" id="voti-table">
-                            <thead>
-                                <tr>
-                                    <th>Data</th>
-                                    <th>Materia</th>
-                                    <th>Valutazione</th>
-                                    <th>Esito</th>
-                                </tr>
-                            </thead>
-                            <tbody id="voti-body"></tbody>
-                        </table>
-                    </div>
+                <!-- ===== AGENDA ===== -->
+                <section id="view-agenda" class="view">
+                    <div class="masonry reveal" id="agenda-container"></div>
                 </section>
 
-                <!-- 3. AGENDA -->
-                <section id="view-agenda" class="app-view">
-                    <div class="agenda-masonry stagger-1" id="agenda-container">
-                        <!-- Popolato via JS -->
-                    </div>
-                </section>
-
-                <!-- 4. COMPITI KANBAN -->
-                <section id="view-compiti" class="app-view">
-                    <div class="kanban-wrapper stagger-1">
-                        <div class="kanban-column">
-                            <div class="kanban-header">
-                                <h3>Da completare <span class="badge badge-dark" id="count-todo">0</span></h3>
-                            </div>
-                            <div class="kanban-body" id="col-todo"></div>
+                <!-- ===== COMPITI ===== -->
+                <section id="view-compiti" class="view">
+                    <div class="kanban reveal">
+                        <div class="k-col">
+                            <div class="k-head"><h3><i class="fa-regular fa-circle"></i> Da fare <span class="cnt" id="count-todo">0</span></h3></div>
+                            <div class="k-list" id="col-todo"></div>
                         </div>
-
-                        <div class="kanban-column">
-                            <div class="kanban-header">
-                                <h3>Fatto <span class="badge badge-primary" id="count-done">0</span></h3>
-                                <button class="btn-text" id="clear-done">Svuota</button>
-                            </div>
-                            <div class="kanban-body" id="col-done"></div>
+                        <div class="k-col">
+                            <div class="k-head"><h3><i class="fa-solid fa-circle-check text-green"></i> Fatto <span class="cnt green" id="count-done">0</span></h3><button class="btn-ghost" id="clear-done">Svuota</button></div>
+                            <div class="k-list" id="col-done"></div>
                         </div>
-
-                        <div class="kanban-column">
-                            <div class="kanban-header">
-                                <h3>Studio Assegnato</h3>
-                            </div>
-                            <div class="kanban-body" id="col-studio"></div>
+                        <div class="k-col">
+                            <div class="k-head"><h3><i class="fa-solid fa-book-open"></i> Studio</h3></div>
+                            <div class="k-list" id="col-studio"></div>
                         </div>
                     </div>
                 </section>
 
-                <!-- 5. ASSENZE -->
-                <section id="view-assenze" class="app-view">
-                    <div class="bento-card stagger-1 p-0 table-container">
-                        <table class="apple-table">
-                            <thead>
-                                <tr>
-                                    <th>Data</th>
-                                    <th>Tipologia</th>
-                                    <th>Note / Orario</th>
-                                    <th>Stato</th>
-                                </tr>
-                            </thead>
-                            <tbody id="assenze-body"></tbody>
-                        </table>
+                <!-- ===== ASSENZE ===== -->
+                <section id="view-assenze" class="view">
+                    <div class="card reveal p-0">
+                        <div class="tbl-wrap">
+                            <table class="tbl">
+                                <thead><tr><th>Data</th><th>Tipo</th><th>Dettaglio</th><th>Stato</th></tr></thead>
+                                <tbody id="assenze-body"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </section>
 
-                <!-- 6. NOTE -->
-                <section id="view-note" class="app-view">
-                    <div class="notes-grid stagger-1" id="note-body"></div>
+                <!-- ===== NOTE ===== -->
+                <section id="view-note" class="view">
+                    <div class="notes-wrap reveal" id="note-body"></div>
                 </section>
 
             </div>
@@ -269,5 +226,4 @@
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
-
 </html>

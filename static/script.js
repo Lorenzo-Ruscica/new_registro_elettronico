@@ -1,4 +1,4 @@
-// EduTrack Apple-Style Engine
+// EduTrack — Engine v3 (Apple-Fluid)
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -6,8 +6,6 @@ document.addEventListener('DOMContentLoaded', () => {
         loginForm: document.getElementById('login-form'),
         loginBtn: document.getElementById('login-btn'),
         errorMsg: document.getElementById('login-error'),
-        navItems: document.querySelectorAll('.nav-item[data-target]'),
-        views: document.querySelectorAll('.app-view'),
         logoutBtn: document.getElementById('logout-btn'),
         searchGlobal: document.getElementById('global-search'),
         dateDisplay: document.getElementById('current-date'),
@@ -15,451 +13,368 @@ document.addEventListener('DOMContentLoaded', () => {
         pageTitle: document.getElementById('page-title')
     };
 
-    let GLOBAL_DATA = null;
-    let chartsInstance = {};
-    let sortDirection = 'desc';
+    // Raccogliamo TUTTI i nav items (sidebar + mobile bottom)
+    const allNavItems = document.querySelectorAll('.s-link[data-target], .mob-item[data-target]');
+    const allViews = document.querySelectorAll('.view');
 
-    // 1. Orologio Clean
-    const updateTime = () => {
-        const now = new Date();
-        const options = { weekday: 'long', day: 'numeric', month: 'long'};
-        DOM.dateDisplay.textContent = now.toLocaleDateString('it-IT', options).replace(/^./, str => str.toUpperCase());
+    let DATA = null;
+    let charts = {};
+    let sortDir = 'desc';
+
+    // ---------- CLOCK ----------
+    const tick = () => {
+        const d = new Date();
+        const opts = { weekday:'long', day:'numeric', month:'long' };
+        DOM.dateDisplay.textContent = d.toLocaleDateString('it-IT', opts).replace(/^./, s => s.toUpperCase());
     };
-    updateTime(); setInterval(updateTime, 60000);
+    tick(); setInterval(tick, 60000);
 
-    // 2. Mostra/Nascondi Password fluido
-    const togglePasswordBtn = document.getElementById('toggle-password');
-    if(togglePasswordBtn) {
-        togglePasswordBtn.addEventListener('click', () => {
-            const pwdObj = document.getElementById('password');
-            if(pwdObj.type === 'password') {
-                pwdObj.type = 'text';
-                togglePasswordBtn.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
-                togglePasswordBtn.style.color = 'var(--primary)';
-            } else {
-                pwdObj.type = 'password';
-                togglePasswordBtn.innerHTML = '<i class="fa-solid fa-eye"></i>';
-                togglePasswordBtn.style.color = 'var(--text-muted)';
-            }
+    // ---------- SHOW/HIDE PASSWORD ----------
+    const eyeBtn = document.getElementById('toggle-pw');
+    if (eyeBtn) {
+        eyeBtn.addEventListener('click', () => {
+            const inp = document.getElementById('password');
+            const isHidden = inp.type === 'password';
+            inp.type = isHidden ? 'text' : 'password';
+            eyeBtn.innerHTML = isHidden ? '<i class="fa-solid fa-eye-slash"></i>' : '<i class="fa-solid fa-eye"></i>';
+            eyeBtn.style.color = isHidden ? 'var(--blue)' : 'var(--gray-400)';
         });
     }
 
-    // 3. Navigazione tra le viste (Animazione in Entrata)
-    DOM.navItems.forEach(item => {
+    // ---------- NAVIGATION (Syncs sidebar + bottom nav) ----------
+    allNavItems.forEach(item => {
         item.addEventListener('click', (e) => {
             e.preventDefault();
-            
-            // Effetto click icona (rimbalzo)
+            const targetName = item.dataset.target;
+
+            // Micro bounce sull'icona
             const icon = item.querySelector('i');
-            icon.style.transform = 'scale(0.8)';
-            setTimeout(() => icon.style.transform = 'scale(1)', 150);
+            if (icon) { icon.style.transform = 'scale(0.75)'; setTimeout(() => icon.style.transform = '', 180); }
 
-            // Nav handling
-            DOM.navItems.forEach(nav => nav.classList.remove('active'));
-            item.classList.add('active');
-            
-            const targetId = `view-${item.dataset.target}`;
-            const targetView = document.getElementById(targetId);
-            
-            DOM.pageTitle.textContent = item.innerHTML.replace('<i class="fa-solid fa-shapes"></i>', '').replace(/<[^>]*>?/gm, '').trim();
+            // Deseleziona tutti (sidebar + mobile)
+            allNavItems.forEach(n => n.classList.remove('active'));
+            // Seleziona tutti quelli con lo stesso target
+            allNavItems.forEach(n => { if (n.dataset.target === targetName) n.classList.add('active'); });
 
-            DOM.views.forEach(view => {
-                if (view.id !== targetId) {
-                    view.classList.remove('active');
-                    setTimeout(() => { if (!view.classList.contains('active')) view.style.display = 'none'; }, 200);
+            // Titolo
+            const displayNames = { dashboard:'Dashboard', voti:'Valutazioni', agenda:'Calendario', compiti:'Compiti', assenze:'Registro Assenze', note:'Note' };
+            DOM.pageTitle.textContent = displayNames[targetName] || targetName;
+
+            // Hide views
+            const targetView = document.getElementById(`view-${targetName}`);
+            allViews.forEach(v => {
+                if (v !== targetView) {
+                    v.classList.remove('active');
+                    setTimeout(() => { if (!v.classList.contains('active')) v.style.display = 'none'; }, 250);
                 }
             });
 
-            // Applica staggers da capo ricaricando l'animazione
+            // Show view + retrigger animations
             targetView.style.display = 'block';
-            targetView.querySelectorAll('[class*="stagger-"]').forEach(el => {
+            targetView.querySelectorAll('.reveal').forEach(el => {
                 el.style.animation = 'none';
-                el.offsetHeight; /* trigger reflow */
-                el.style.animation = null; 
+                el.offsetHeight; // force reflow
+                el.style.animation = '';
             });
-
             setTimeout(() => {
                 targetView.classList.add('active');
-                if(item.dataset.target === 'voti' && !chartsInstance.medie) renderMedieChart(GLOBAL_DATA);
-                if(item.dataset.target === 'dashboard' && !chartsInstance.dash) renderDashChart(GLOBAL_DATA);
-            }, 10);
+                if (targetName === 'voti' && !charts.medie) renderMedieChart(DATA);
+                if (targetName === 'dashboard') {
+                    if (!charts.dash) renderDashChart(DATA);
+                    if (!charts.radar) renderRadarChart(DATA);
+                }
+            }, 20);
         });
     });
 
-    // 4. Logout (Animazione dissolvenza)
-    if(DOM.logoutBtn) {
+    // ---------- LOGOUT ----------
+    if (DOM.logoutBtn) {
         DOM.logoutBtn.addEventListener('click', () => {
             document.getElementById('app-screen').style.opacity = '0';
-            setTimeout(() => {
-                fetch('/api/logout', { method: 'POST' }).then(() => location.reload());
-            }, 300);
+            setTimeout(() => fetch('/api/logout', { method:'POST' }).then(() => location.reload()), 350);
         });
     }
 
-    // 5. Autenticazione 
+    // ---------- LOGIN ----------
     DOM.loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
-        const btnText = DOM.loginBtn.querySelector('.btn-text');
-        const loader = DOM.loginBtn.querySelector('.spinner');
+        const user = document.getElementById('username').value;
+        const pwd = document.getElementById('password').value;
+        const label = DOM.loginBtn.querySelector('.btn-label');
+        const spin = DOM.loginBtn.querySelector('.btn-spin');
 
-        DOM.errorMsg.style.opacity = '0';
         DOM.errorMsg.textContent = '';
-        btnText.style.display = 'none';
-        loader.style.display = 'block';
+        label.style.display = 'none'; spin.style.display = 'block';
         DOM.loginBtn.disabled = true;
         DOM.loginBtn.style.transform = 'scale(0.97)';
 
         try {
-            const res = await fetch('/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-            const data = await res.json();
-
-            if(data.success) {
-                document.getElementById('user-display').textContent = username;
-                switchScreen('loading-screen');
-                performSync();
+            const res = await fetch('/api/login', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ username:user, password:pwd }) });
+            const json = await res.json();
+            if (json.success) {
+                document.getElementById('user-display').textContent = user;
+                flip('loading-screen');
+                sync();
             } else {
-                DOM.loginBtn.style.transform = 'scale(1)';
-                throw new Error(data.message || 'Credenziali errate');
+                DOM.loginBtn.style.transform = '';
+                throw new Error(json.message || 'Credenziali errate');
             }
         } catch(err) {
             DOM.errorMsg.textContent = err.message;
-            DOM.errorMsg.style.opacity = '1';
-            btnText.style.display = 'block';
-            loader.style.display = 'none';
+            label.style.display = ''; spin.style.display = 'none';
             DOM.loginBtn.disabled = false;
         }
     });
 
-    function switchScreen(id) {
+    function flip(id) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        const screen = document.getElementById(id);
-        screen.classList.add('active');
+        document.getElementById(id).classList.add('active');
     }
 
-    // 6. Sincronizzazione Dati
-    async function performSync() {
-        const syncStatus = document.getElementById('sync-status');
+    // ---------- SYNC ----------
+    async function sync() {
+        const st = document.getElementById('sync-status');
         try {
-            const res = await fetch('/api/data');
-            if(!res.ok) throw new Error();
-            GLOBAL_DATA = await res.json();
-            
-            syncStatus.textContent = 'Ottimizzazione interfaccia...';
-            populateAll(GLOBAL_DATA);
-            
+            const r = await fetch('/api/data');
+            if (!r.ok) throw 0;
+            DATA = await r.json();
+            st.textContent = 'Interfaccia pronta...';
+            populateAll(DATA);
             setTimeout(() => {
-                switchScreen('app-screen');
-                document.querySelector('.nav-item.active').click(); 
-                renderDashChart(GLOBAL_DATA);
-            }, 800);
-
-        } catch(e) {
-            alert('Connessione al server d\'istituto interrotta. Riprova.');
-            location.reload();
+                flip('app-screen');
+                document.querySelector('.s-link.active, .mob-item.active').click();
+                renderDashChart(DATA);
+                renderRadarChart(DATA);
+            }, 700);
+        } catch(_) {
+            alert('Errore di connessione. Riprova.'); location.reload();
         }
     }
 
-    /* ==== POPOPLAMENTO DATI ==== */
-    
-    function getNumericalVoto(str) {
-        if(!str) return null;
-        let num = parseFloat(str.replace(',', '.'));
-        if(str.includes('+')) num += 0.25;
-        if(str.endsWith('-')) num -= 0.25;
-        if(str.includes('1/2')) num += 0.5;
-        return isNaN(num) ? null : num;
+    // ---------- UTILS ----------
+    function numVoto(s) {
+        if (!s) return null;
+        let n = parseFloat(s.replace(',','.'));
+        if (s.includes('+')) n += 0.25;
+        if (s.endsWith('-')) n -= 0.25;
+        if (s.includes('½') || s.includes('1/2')) n += 0.5;
+        return isNaN(n) ? null : n;
     }
 
-    function populateAll(data) {
-        // --- 1. DASHBOARD ---
-        const navgVoti = data.voti.map(v => getNumericalVoto(v.voto)).filter(n => n !== null);
-        const sumVoti = navgVoti.reduce((a, b) => a + b, 0);
-        const media = navgVoti.length > 0 ? (sumVoti/navgVoti.length).toFixed(2) : 0;
-        
-        const mediaEl = document.getElementById('dash-media');
-        mediaEl.textContent = media > 0 ? media : '--';
-        document.getElementById('media-status').innerHTML = media >= 6 ? '<span class="text-primary"><i class="fa-solid fa-arrow-trend-up"></i> Regolare</span>' : '<span style="color:var(--danger)"><i class="fa-solid fa-arrow-trend-down"></i> Critico</span>';
+    // ---------- POPULATE ----------
+    function populateAll(d) {
+        const nums = d.voti.map(v => numVoto(v.voto)).filter(Boolean);
+        const avg = nums.length ? (nums.reduce((a,b) => a+b, 0) / nums.length).toFixed(2) : 0;
 
-        const compiti = data.argomenti.filter(a => a.tipo.toLowerCase().includes('asseg') || a.tipo.toLowerCase().includes('compit'));
-        document.getElementById('dash-compiti').textContent = compiti.length;
+        document.getElementById('dash-media').textContent = avg > 0 ? avg : '--';
+        document.getElementById('media-status').innerHTML = avg >= 6
+            ? '<span style="color:var(--blue)"><i class="fa-solid fa-arrow-trend-up"></i> In regola</span>'
+            : '<span style="color:var(--red)"><i class="fa-solid fa-arrow-trend-down"></i> Critico</span>';
 
-        const assenzeNo = data.assenze.filter(a => !a.giustificata).length;
-        document.getElementById('dash-assenze').textContent = data.assenze.length;
-        const msgAssenze = document.getElementById('dash-giustifiche');
-        msgAssenze.innerHTML = assenzeNo > 0 ? `<span style="color:var(--danger)"><i class="fa-solid fa-circle-info"></i> ${assenzeNo} da Giustif.</span>` : '<span style="color:var(--success)"><i class="fa-regular fa-circle-check"></i> Nulla da segnalare</span>';
+        const hw = d.argomenti.filter(a => a.tipo.toLowerCase().includes('asseg') || a.tipo.toLowerCase().includes('compit'));
+        document.getElementById('dash-compiti').textContent = hw.length;
 
-        // Dash Agenda Minimal List
-        const dAgenda = document.getElementById('dash-agenda');
-        dAgenda.innerHTML = '';
-        data.agenda.slice(0, 4).forEach((a, index) => {
-            const isTask = a.tipo.toLowerCase().includes('compito');
-            dAgenda.innerHTML += `
-            <li class="${isTask ? 'is-task' : ''}" style="border-left-color:${isTask?'var(--warning)':'var(--primary)'}">
-                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                    <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">${a.data}</span>
-                    <span style="font-size:0.75rem; padding: 2px 8px; border-radius: 12px; background:${isTask?'#fff7ed':'#e8f2ff'}; color:${isTask?'var(--warning)':'var(--primary)'}">${a.tipo.toUpperCase()}</span>
-                </div>
-                <span style="font-size: 1.05rem; font-weight: 600;">${a.titolo.length > 40 ? a.titolo.substring(0,40)+'...' : a.titolo}</span>
+        const ung = d.assenze.filter(a => !a.giustificata).length;
+        document.getElementById('dash-assenze').textContent = d.assenze.length;
+        document.getElementById('dash-giustifiche').innerHTML = ung > 0
+            ? `<span style="color:var(--red)"><i class="fa-solid fa-circle-info"></i> ${ung} da giustificare</span>`
+            : `<span style="color:var(--green)"><i class="fa-regular fa-circle-check"></i> Tutto in regola</span>`;
+
+        // AGENDA MINI
+        const aList = document.getElementById('dash-agenda');
+        aList.innerHTML = '';
+        d.agenda.slice(0, 5).forEach(a => {
+            const isT = a.tipo.toLowerCase().includes('compito') || a.tipo.toLowerCase().includes('ver');
+            aList.innerHTML += `<li style="border-left-color:${isT?'var(--orange)':'var(--blue)'}">
+                <span class="ev-date">${a.data} — ${a.orario||'ND'}</span>
+                <span class="ev-title">${a.titolo.length > 50 ? a.titolo.substring(0,50)+'…' : a.titolo}</span>
             </li>`;
         });
-        if(data.agenda.length === 0) dAgenda.innerHTML = '<li><span style="font-weight:400; color:var(--text-muted)">Nessun appuntamento in agenda.</span></li>';
+        if (!d.agenda.length) aList.innerHTML = '<li><span class="ev-title" style="color:var(--gray-400)">Nessun impegno registrato.</span></li>';
 
-        // --- 2. VOTI: TABELLA ---
-        renderVotiTable(data.voti);
-        const filterStr = document.getElementById('filter-materia');
-        const materieUniche = [...new Set(data.voti.map(v => v.materia))];
-        materieUniche.forEach(mat => filterStr.innerHTML += `<option value="${mat}">${mat}</option>`);
+        // VOTI TABLE
+        renderVotiTable(d.voti);
+        const sel = document.getElementById('filter-materia');
+        [...new Set(d.voti.map(v => v.materia))].forEach(m => sel.innerHTML += `<option value="${m}">${m}</option>`);
 
-        // --- 3. AGENDA MASONRY ---
-        const agendaC = document.getElementById('agenda-container');
-        agendaC.innerHTML = '';
-        data.agenda.forEach(a => {
-            let badgeClass = 'badge-primary';
-            if(a.tipo.toLowerCase().includes('ver')) badgeClass = 'badge-danger';
-            
-            agendaC.innerHTML += `
-            <div class="ag-card">
-                <div class="ag-header">
-                    <span class="ag-date">${a.data}</span>
-                    <span class="ag-time">${a.orario || '--:--'}</span>
-                </div>
-                <span class="badge ${badgeClass}" style="margin-bottom:12px">${a.tipo}</span>
-                <p>${a.titolo}</p>
-                <div class="ag-doc"><i class="fa-solid fa-chalkboard-user" style="margin-right:6px"></i>${a.docente || '-'}</div>
-            </div>`;
+        // AGENDA MASONRY
+        const ac = document.getElementById('agenda-container'); ac.innerHTML = '';
+        d.agenda.forEach(a => {
+            const bcls = a.tipo.toLowerCase().includes('ver') ? 'background:var(--red-light);color:var(--red)' : 'background:var(--blue-light);color:var(--blue)';
+            ac.innerHTML += `<div class="m-card"><div class="m-head"><span class="m-date">${a.data}</span><span class="m-time">${a.orario||'--:--'}</span></div><span class="badge" style="${bcls}">${a.tipo}</span><p>${a.titolo}</p><div class="m-doc"><i class="fa-solid fa-chalkboard-user" style="margin-right:6px"></i>${a.docente||'-'}</div></div>`;
         });
 
-        // --- 4. KANBAN COMPITI ANIMATO ---
-        const kTodo = document.getElementById('col-todo');
-        const kStudio = document.getElementById('col-studio');
-        kTodo.innerHTML = ''; kStudio.innerHTML = '';
-        
-        let todoCount = 0;
-        compiti.forEach((c, idx) => {
-            kTodo.innerHTML += `
-            <div class="task-apple" id="task-${idx}" onclick="this.classList.toggle('done'); updateTaskCount();">
-                <span class="t-meta">${c.materia} &bull; ${c.stato || 'Giorno ' + c.data}</span>
-                <div class="t-titolo">${c.tipo}</div>
-                <div class="t-desc">${c.contenuto}</div>
-            </div>`;
-            todoCount++;
+        // KANBAN
+        const kT = document.getElementById('col-todo'), kS = document.getElementById('col-studio');
+        kT.innerHTML = ''; kS.innerHTML = '';
+        let tc = 0;
+        hw.forEach((c,i) => {
+            kT.innerHTML += `<div class="k-card" id="task-${i}" onclick="this.classList.toggle('done');updateTaskCount()"><span class="kc-meta">${c.materia} · ${c.stato||c.data}</span><div class="kc-title">${c.tipo}</div><div class="kc-desc">${c.contenuto}</div></div>`;
+            tc++;
         });
-        document.getElementById('count-todo').textContent = todoCount;
-
-        data.argomenti.filter(a => !a.tipo.toLowerCase().includes('asseg') && !a.tipo.toLowerCase().includes('compit')).forEach(c => {
-            kStudio.innerHTML += `
-            <div class="task-apple studio">
-                <span class="t-meta">${c.materia} &bull; ${c.data}</span>
-                <div class="t-titolo">${c.tipo}</div>
-                <div class="t-desc">${c.contenuto}</div>
-            </div>`;
+        document.getElementById('count-todo').textContent = tc;
+        d.argomenti.filter(a => !a.tipo.toLowerCase().includes('asseg') && !a.tipo.toLowerCase().includes('compit')).forEach(c => {
+            kS.innerHTML += `<div class="k-card studio"><span class="kc-meta">${c.materia} · ${c.data}</span><div class="kc-title">${c.tipo}</div><div class="kc-desc">${c.contenuto}</div></div>`;
         });
 
-        // --- 5. ASSENZE ---
-        const tAssenze = document.getElementById('assenze-body');
-        tAssenze.innerHTML = '';
-        data.assenze.forEach(a => {
-            const check = a.giustificata ? '<span style="color:var(--success);font-weight:600;"><i class="fa-solid fa-check-circle"></i> Regolare</span>' : '<span style="color:var(--danger);font-weight:600;"><i class="fa-solid fa-circle-xmark"></i> Richiede valid.</span>';
-            tAssenze.innerHTML += `
-            <tr>
-                <td style="font-weight:600; color:var(--text-dark)">${a.data}</td>
-                <td><span class="badge badge-dark">${a.tipo}</span></td>
-                <td style="color:var(--text-muted)">${a.descrizione || 'ND'}</td>
-                <td>${check}</td>
-            </tr>`;
+        // ASSENZE
+        const ab = document.getElementById('assenze-body'); ab.innerHTML = '';
+        d.assenze.forEach(a => {
+            const st = a.giustificata
+                ? '<span style="color:var(--green);font-weight:600"><i class="fa-solid fa-check-circle"></i> Giustificata</span>'
+                : '<span style="color:var(--red);font-weight:600"><i class="fa-solid fa-circle-xmark"></i> Da giustificare</span>';
+            ab.innerHTML += `<tr><td style="font-weight:600">${a.data}</td><td><span class="badge" style="background:var(--gray-100);color:var(--gray-600)">${a.tipo}</span></td><td style="color:var(--gray-600)">${a.descrizione||'-'}</td><td>${st}</td></tr>`;
         });
-        if(data.assenze.length === 0) tAssenze.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:30px">Nessuna assenza registrata.</td></tr>';
+        if (!d.assenze.length) ab.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--gray-400);padding:30px">Nessuna assenza.</td></tr>';
 
-        // --- 6. NOTE ---
-        const nCont = document.getElementById('note-body');
-        nCont.innerHTML = '';
-        data.note.forEach(n => {
-            nCont.innerHTML += `
-            <div class="note-apple">
-                <i class="fa-solid fa-triangle-exclamation"></i>
-                <div style="flex:1">
-                    <span style="display:block; font-size:0.85rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px">Annotazione O Note</span>
-                    <p>"${n.contenuto}"</p>
-                </div>
-            </div>`;
+        // NOTE
+        const nb = document.getElementById('note-body'); nb.innerHTML = '';
+        d.note.forEach(n => {
+            nb.innerHTML += `<div class="note-card"><i class="fa-solid fa-triangle-exclamation"></i><div><small style="display:block;font-weight:700;color:var(--gray-400);text-transform:uppercase;margin-bottom:6px">Nota Disciplinare</small><p>"${n.contenuto}"</p></div></div>`;
         });
-        if(data.note.length === 0) nCont.innerHTML = '<div class="note-apple" style="border-left-color:var(--success);"><i class="fa-solid fa-face-smile" style="color:var(--success)"></i><p style="font-style:normal; margin-top:6px; font-weight:500;">Sanzioni o note disciplinari assenti nel sistema.</p></div>';
+        if (!d.note.length) nb.innerHTML = '<div class="note-card ok-note"><i class="fa-regular fa-face-smile"></i><div><p style="font-style:normal;font-weight:500">Nessuna nota disciplinare. Ottimo lavoro!</p></div></div>';
     }
 
-
-    /* ==== LIBRERIA KANBAN: DRAG & DROP LOGIC ==== */
+    // ---------- KANBAN LOGIC ----------
     window.updateTaskCount = () => {
-        const todos = document.querySelectorAll('#col-todo .task-apple:not(.done)').length;
-        const doneList = document.querySelectorAll('#col-todo .task-apple.done');
-        document.getElementById('count-todo').textContent = todos;
-        document.getElementById('count-done').textContent = doneList.length;
-        
-        const colDone = document.getElementById('col-done');
-        doneList.forEach(t => {
-            t.style.opacity = '0';
+        const td = document.querySelectorAll('#col-todo .k-card:not(.done)').length;
+        const dn = document.querySelectorAll('#col-todo .k-card.done');
+        document.getElementById('count-todo').textContent = td;
+        document.getElementById('count-done').textContent = dn.length;
+        const colD = document.getElementById('col-done');
+        dn.forEach(t => {
+            t.style.opacity = '0'; t.style.transform = 'scale(0.95)';
             setTimeout(() => {
-                colDone.appendChild(t); 
-                t.style.opacity = '1';
-            }, 150);
-            
-            t.onclick = function() { 
+                colD.appendChild(t);
+                t.style.opacity = ''; t.style.transform = '';
+            }, 200);
+            t.onclick = function() {
                 this.classList.remove('done');
                 this.style.opacity = '0';
-                setTimeout(() => {
-                    document.getElementById('col-todo').appendChild(this);
-                    this.style.opacity = '1';
-                    window.updateTaskCount();
-                }, 150);
-            }
+                setTimeout(() => { document.getElementById('col-todo').appendChild(this); this.style.opacity = ''; window.updateTaskCount(); }, 200);
+            };
         });
     };
-
     document.getElementById('clear-done').addEventListener('click', () => {
-        document.getElementById('col-done').innerHTML = '';
-        document.getElementById('count-done').textContent = '0';
+        const cd = document.getElementById('col-done');
+        cd.style.opacity = '0';
+        setTimeout(() => { cd.innerHTML = ''; cd.style.opacity = ''; document.getElementById('count-done').textContent = '0'; }, 200);
     });
 
-    /* ==== RICERCH E FILTRI FLUIDI ==== */
-    document.getElementById('filter-materia').addEventListener('change', (e) => {
-        const val = e.target.value;
-        document.querySelectorAll('#voti-body tr').forEach(r => {
-            if(val === 'all' || r.dataset.materia === val) r.style.display = '';
-            else r.style.display = 'none';
-        });
+    // ---------- FILTERS ----------
+    document.getElementById('filter-materia').addEventListener('change', e => {
+        const v = e.target.value;
+        document.querySelectorAll('#voti-body tr').forEach(r => r.style.display = (v === 'all' || r.dataset.materia === v) ? '' : 'none');
     });
 
     DOM.sortVotiBtn.addEventListener('click', () => {
-        // Effetto bounce bottone
         DOM.sortVotiBtn.style.transform = 'scale(0.95)';
-        setTimeout(() => DOM.sortVotiBtn.style.transform = 'scale(1)', 150);
-
-        sortDirection = sortDirection === 'desc' ? 'asc' : 'desc';
-        const sorted = [...GLOBAL_DATA.voti].sort((a,b) => {
-            let nA = getNumericalVoto(a.voto) || 0;
-            let nB = getNumericalVoto(b.voto) || 0;
-            return sortDirection === 'desc' ? nA - nB : nB - nA;
+        setTimeout(() => DOM.sortVotiBtn.style.transform = '', 180);
+        sortDir = sortDir === 'desc' ? 'asc' : 'desc';
+        const sorted = [...DATA.voti].sort((a,b) => {
+            const na = numVoto(a.voto)||0, nb = numVoto(b.voto)||0;
+            return sortDir === 'desc' ? na - nb : nb - na;
         });
-        
-        // Animazione fade della tabella prima di ordinarla
-        const tbody = document.getElementById('voti-body');
-        tbody.style.opacity = '0';
-        setTimeout(() => {
-            renderVotiTable(sorted);
-            tbody.style.opacity = '1';
-            document.getElementById('filter-materia').value = 'all';
-        }, 300);
+        const tb = document.getElementById('voti-body');
+        tb.style.opacity = '0';
+        setTimeout(() => { renderVotiTable(sorted); tb.style.opacity = '1'; document.getElementById('filter-materia').value = 'all'; }, 250);
     });
 
-    DOM.searchGlobal.addEventListener('input', (e) => {
-        const query = e.target.value.toLowerCase();
-        if(document.getElementById('view-voti').classList.contains('active')) {
-            document.querySelectorAll('#voti-body tr').forEach(r => {
-                const text = r.textContent.toLowerCase();
-                r.style.display = text.includes(query) ? '' : 'none';
-            });
-        }
-    });
-
-    function renderVotiTable(votiArray) {
-        const tbody = document.getElementById('voti-body');
-        tbody.style.transition = 'opacity 0.3s ease';
-        tbody.innerHTML = '';
-        votiArray.forEach(v => {
-            const num = getNumericalVoto(v.voto);
-            let circleClass = 'voti-circle vc-orange';
-            let labelBadge = '<span class="badge badge-dark">Sufficiente</span>';
-            
-            if(num >= 7.5) { circleClass = 'voti-circle vc-green'; labelBadge = '<span class="badge badge-success">Positiva</span>'; }
-            else if(num < 6 && num !== null) { circleClass = 'voti-circle vc-red'; labelBadge = '<span class="badge badge-danger">Carente</span>'; }
-
-            tbody.innerHTML += `
-            <tr data-materia="${v.materia}">
-                <td style="color:var(--text-muted); font-size:0.85rem">${v.data}</td>
-                <td style="font-weight:600; color:var(--text-dark)">${v.materia}</td>
-                <td><div class="${circleClass}">${v.voto}</div></td>
-                <td>${labelBadge}</td>
-            </tr>`;
+    if (DOM.searchGlobal) {
+        DOM.searchGlobal.addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('#voti-body tr').forEach(r => r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none');
         });
     }
 
-    /* ==== CHART.JS MODERNO/APPLE STYLES ==== */
+    function renderVotiTable(arr) {
+        const tb = document.getElementById('voti-body');
+        tb.style.transition = 'opacity 0.25s ease';
+        tb.innerHTML = '';
+        arr.forEach(v => {
+            const n = numVoto(v.voto);
+            let cc = 'voto-chip vc-o', badge = '<span class="badge" style="background:var(--orange-light);color:var(--orange)">Sufficiente</span>';
+            if (n >= 7.5) { cc = 'voto-chip vc-g'; badge = '<span class="badge" style="background:var(--green-light);color:var(--green)">Positivo</span>'; }
+            else if (n !== null && n < 6) { cc = 'voto-chip vc-r'; badge = '<span class="badge" style="background:var(--red-light);color:var(--red)">Carente</span>'; }
+            tb.innerHTML += `<tr data-materia="${v.materia}"><td style="color:var(--gray-400)">${v.data}</td><td style="font-weight:600">${v.materia}</td><td><div class="${cc}">${v.voto}</div></td><td>${badge}</td></tr>`;
+        });
+    }
+
+    // ---------- CHARTS ----------
     Chart.defaults.color = '#86868b';
-    Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif';
+    Chart.defaults.font.family = "'Inter', -apple-system, sans-serif";
 
-    function renderDashChart(data) {
-        if(chartsInstance.dash) chartsInstance.dash.destroy();
-        const votivalidi = data.voti.map(v => getNumericalVoto(v.voto)).filter(n => n !== null);
-        if(votivalidi.length === 0) return;
-
+    function renderDashChart(d) {
+        if (charts.dash) charts.dash.destroy();
+        const vals = d.voti.map(v => numVoto(v.voto)).filter(Boolean);
+        if (!vals.length) return;
         const ctx = document.getElementById('dashChart').getContext('2d');
-        const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-        gradient.addColorStop(0, 'rgba(0, 113, 227, 0.25)'); 
-        gradient.addColorStop(1, 'rgba(0, 113, 227, 0)');
-
-        chartsInstance.dash = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: votivalidi.slice(-12).map((_, i) => "Valutazione"),
-                datasets: [{
-                    label: 'Trend Voti Recenti',
-                    data: votivalidi.slice(-12),
-                    fill: true, backgroundColor: gradient, borderColor: '#0071e3', borderWidth: 3, tension: 0.4, /* Linea curva sfumata! */
-                    pointBackgroundColor: '#fff', pointBorderColor: '#0071e3', pointRadius: 5, pointHoverRadius: 8
+        const gr = ctx.createLinearGradient(0,0,0,280);
+        gr.addColorStop(0,'rgba(0,113,227,0.2)'); gr.addColorStop(1,'rgba(0,113,227,0)');
+        charts.dash = new Chart(ctx, {
+            type:'line',
+            data:{
+                labels: vals.slice(-15).map((_,i)=>`#${i+1}`),
+                datasets:[{
+                    data:vals.slice(-15), fill:true, backgroundColor:gr, borderColor:'#0071e3',
+                    borderWidth:3, tension:0.45, pointBackgroundColor:'#fff', pointBorderColor:'#0071e3',
+                    pointRadius:4, pointHoverRadius:7, pointBorderWidth:2
                 }]
             },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', padding: 12, cornerRadius: 8 } },
-                scales: { 
-                    y: { min: 2, max: 10, grid: { color: 'rgba(0,0,0,0.04)', drawBorder: false }},
-                    x: { display: false, grid: { display: false } }
-                },
-                animation: { duration: 1500, easing: 'easeOutQuart' }
+            options:{
+                responsive:true, maintainAspectRatio:false,
+                plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'rgba(0,0,0,0.85)', padding:12, cornerRadius:8, titleFont:{weight:'700'} } },
+                scales:{ y:{min:2,max:10, grid:{color:'rgba(0,0,0,0.04)', drawBorder:false}}, x:{grid:{display:false}} },
+                animation:{ duration:1500, easing:'easeOutQuart' }
             }
         });
     }
 
-    function renderMedieChart(data) {
-        if(chartsInstance.medie) chartsInstance.medie.destroy();
-        const materieMap = {};
-        data.voti.forEach(v => {
-            const num = getNumericalVoto(v.voto);
-            if(num === null) return;
-            if(!materieMap[v.materia]) materieMap[v.materia] = {s:0, c:0};
-            materieMap[v.materia].s += num;
-            materieMap[v.materia].c++;
-        });
-
-        const labels = Object.keys(materieMap).map(m => m.substring(0,15)+ (m.length>15?'..':''));
-        const medie = Object.keys(materieMap).map(m => (materieMap[m].s / materieMap[m].c).toFixed(2));
-        
+    function renderMedieChart(d) {
+        if (charts.medie) charts.medie.destroy();
+        const map = {};
+        d.voti.forEach(v => { const n = numVoto(v.voto); if (!n) return; if (!map[v.materia]) map[v.materia]={s:0,c:0}; map[v.materia].s+=n; map[v.materia].c++; });
+        const labels = Object.keys(map).map(m => m.length>14 ? m.substring(0,14)+'…' : m);
+        const avgs = Object.keys(map).map(m => (map[m].s/map[m].c).toFixed(2));
         const ctx = document.getElementById('materieChart').getContext('2d');
-        chartsInstance.medie = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Media Estrapolata',
-                    data: medie,
-                    backgroundColor: medie.map(m => m >= 6 ? '#0071e3' : '#ff3b30'),
-                    borderRadius: 6,
-                    barPercentage: 0.6
+        charts.medie = new Chart(ctx, {
+            type:'bar',
+            data:{
+                labels,
+                datasets:[{ data:avgs, backgroundColor:avgs.map(a => a>=6?'#0071e3':'#ff3b30'), borderRadius:6, barPercentage:0.55 }]
+            },
+            options:{
+                responsive:true, maintainAspectRatio:false,
+                plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'rgba(0,0,0,0.85)', padding:12, cornerRadius:8 } },
+                scales:{ y:{min:0,max:10, grid:{color:'rgba(0,0,0,0.04)'}}, x:{grid:{display:false}} },
+                animation:{ duration:1200, easing:'easeInOutQuart' }
+            }
+        });
+    }
+
+    function renderRadarChart(d) {
+        if (charts.radar) charts.radar.destroy();
+        const map = {};
+        d.voti.forEach(v => { const n = numVoto(v.voto); if (!n) return; if (!map[v.materia]) map[v.materia]={s:0,c:0}; map[v.materia].s+=n; map[v.materia].c++; });
+        const labels = Object.keys(map).map(m => m.length > 10 ? m.substring(0,10)+'…' : m);
+        const avgs = Object.keys(map).map(m => +(map[m].s/map[m].c).toFixed(2));
+        if (!labels.length) return;
+        const ctx = document.getElementById('radarChart').getContext('2d');
+        charts.radar = new Chart(ctx, {
+            type:'radar',
+            data:{
+                labels,
+                datasets:[{
+                    data:avgs, fill:true,
+                    backgroundColor:'rgba(0,113,227,0.12)', borderColor:'#0071e3', borderWidth:2.5,
+                    pointBackgroundColor:'#0071e3', pointRadius:4, pointHoverRadius:6
                 }]
             },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', padding: 12, cornerRadius: 8 } },
-                scales: {
-                    y: { min: 0, max: 10, grid: { color: 'rgba(0,0,0,0.04)'} },
-                    x: { grid: { display: false } }
-                },
-                animation: { duration: 1200, easing: 'easeInOutQuart' }
+            options:{
+                responsive:true, maintainAspectRatio:false,
+                plugins:{ legend:{display:false} },
+                scales:{ r:{ min:0, max:10, ticks:{ stepSize:2, backdropColor:'transparent' }, grid:{ color:'rgba(0,0,0,0.06)' }, pointLabels:{ font:{size:11, weight:'600'} } } },
+                animation:{ duration:1200 }
             }
         });
     }
