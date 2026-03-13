@@ -1,4 +1,5 @@
-// Main Application Logic - Modern UI Pattern
+// Script Logica - Flat / Clean Design
+
 document.addEventListener('DOMContentLoaded', () => {
 
     const DOM = {
@@ -7,26 +8,26 @@ document.addEventListener('DOMContentLoaded', () => {
         errorMsg: document.getElementById('login-error'),
         navItems: document.querySelectorAll('.nav-item[data-target]'),
         views: document.querySelectorAll('.app-view'),
-        themeToggle: document.getElementById('theme-toggle'),
         logoutBtn: document.getElementById('logout-btn'),
         searchGlobal: document.getElementById('global-search'),
         dateDisplay: document.getElementById('current-date'),
-        sortVotiBtn: document.getElementById('sort-voti')
+        sortVotiBtn: document.getElementById('sort-voti'),
+        pageTitle: document.getElementById('page-title')
     };
 
     let GLOBAL_DATA = null;
     let chartsInstance = {};
-    let sortDirection = 'desc'; // Per la tabella voti
+    let sortDirection = 'desc';
 
-    // 1. Orologio Globale
+    // 1. Orologio Minimal
     const updateTime = () => {
         const now = new Date();
-        const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-        DOM.dateDisplay.textContent = now.toLocaleDateString('it-IT', options);
+        const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'};
+        DOM.dateDisplay.textContent = now.toLocaleDateString('it-IT', options).replace(/^./, str => str.toUpperCase());
     };
     updateTime(); setInterval(updateTime, 60000);
 
-    // 1.5. Mostra / Nascondi Password
+    // 2. Mostra/Nascondi Password
     const togglePasswordBtn = document.getElementById('toggle-password');
     if(togglePasswordBtn) {
         togglePasswordBtn.addEventListener('click', () => {
@@ -43,11 +44,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 2. Navigazione Veloce
+    // 3. Navigazione tra le viste
     DOM.navItems.forEach(item => {
         item.addEventListener('click', (e) => {
             e.preventDefault();
             DOM.navItems.forEach(nav => nav.classList.remove('active'));
+            
             const target = document.getElementById(`view-${item.dataset.target}`);
             
             DOM.views.forEach(view => {
@@ -60,6 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             item.classList.add('active');
+            DOM.pageTitle.textContent = item.textContent.trim();
             target.style.display = 'block';
             setTimeout(() => {
                 target.classList.add('active');
@@ -69,30 +72,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // 3. Tema Chiaro / Scuro
-    DOM.themeToggle.addEventListener('click', () => {
-        const html = document.documentElement;
-        if(html.getAttribute('data-theme') === 'dark') {
-            html.setAttribute('data-theme', 'light');
-            DOM.themeToggle.innerHTML = '<i class="fa-solid fa-sun"></i>';
-        } else {
-            html.setAttribute('data-theme', 'dark');
-            DOM.themeToggle.innerHTML = '<i class="fa-solid fa-moon"></i>';
-        }
-    });
-
     // 4. Logout
-    DOM.logoutBtn.addEventListener('click', () => {
-        fetch('/api/logout', { method: 'POST' }).then(() => location.reload());
-    });
+    if(DOM.logoutBtn) {
+        DOM.logoutBtn.addEventListener('click', () => {
+            fetch('/api/logout', { method: 'POST' }).then(() => location.reload());
+        });
+    }
 
-    // 5. Autenticazione
+    // 5. Autenticazione (Login Call)
     DOM.loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
         const btnText = DOM.loginBtn.querySelector('.btn-text');
-        const loader = DOM.loginBtn.querySelector('.loader-spinner');
+        const loader = DOM.loginBtn.querySelector('.spinner');
 
         DOM.errorMsg.textContent = '';
         btnText.style.display = 'none';
@@ -112,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 switchScreen('loading-screen');
                 performSync();
             } else {
-                throw new Error(data.message || 'Credenziali respinte.');
+                throw new Error(data.message || 'Credenziali errate');
             }
         } catch(err) {
             DOM.errorMsg.textContent = err.message;
@@ -127,24 +120,17 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById(id).classList.add('active');
     }
 
-    // 6. Sincronizzazione Dati (Loader finto ma con vero fetch)
-    const syncStatus = document.getElementById('sync-status');
-    const syncTextArr = ["Connessione in corso...", "Recupero Voti...", "Analisi Valutazioni...", "Sincronizzazione Compiti...", "Costruzione Dashboard..."];
-    
+    // 6. Sincronizzazione Dati
     async function performSync() {
-        let i = 0;
-        const tInt = setInterval(() => { if(i < syncTextArr.length) syncStatus.textContent = syncTextArr[i++]; }, 800);
-
+        const syncStatus = document.getElementById('sync-status');
         try {
             const res = await fetch('/api/data');
-            clearInterval(tInt);
             if(!res.ok) throw new Error();
             GLOBAL_DATA = await res.json();
             
-            // Popolamento
+            syncStatus.textContent = 'Analisi completata. Generazione UI...';
             populateAll(GLOBAL_DATA);
             
-            syncStatus.textContent = "Sincronizzazione Completata!";
             setTimeout(() => {
                 switchScreen('app-screen');
                 document.querySelector('.nav-item.active').click(); 
@@ -152,16 +138,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 600);
 
         } catch(e) {
-            clearInterval(tInt);
-            alert("Errore severo di rete durante l'allocazione dal server.");
+            alert('Errore di comunicazione col server d\'istituto. Riprova.');
             location.reload();
         }
     }
 
-    /* ==========================================================
-       POPOLAMENTO & LOGICA STRUMENTI E INTERFACCIA
-       ========================================================== */
-
+    /* ==== LOGICA UI: POPOLAMENTO DATI ==== */
+    
     function getNumericalVoto(str) {
         if(!str) return null;
         let num = parseFloat(str.replace(',', '.'));
@@ -172,89 +155,84 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function populateAll(data) {
-        // --- 1. DASHBOARD OVERVIEW --- 
+        // --- 1. DASHBOARD ---
         const navgVoti = data.voti.map(v => getNumericalVoto(v.voto)).filter(n => n !== null);
         const sumVoti = navgVoti.reduce((a, b) => a + b, 0);
         const media = navgVoti.length > 0 ? (sumVoti/navgVoti.length).toFixed(2) : 0;
         
-        document.getElementById('dash-media').textContent = media > 0 ? media : '--';
-        document.getElementById('media-bar').style.width = media > 0 ? (media*10)+'%' : '0%';
-        if(media >= 6) document.getElementById('media-bar').classList.add('bg-success');
-        else document.getElementById('media-bar').classList.add('bg-danger');
+        const mediaEl = document.getElementById('dash-media');
+        mediaEl.textContent = media > 0 ? media : '--';
+        document.getElementById('media-status').innerHTML = media >= 6 ? '<span class="text-primary font-medium">Andamento Stabile</span>' : '<span style="color:var(--danger)">Carenze rilevate</span>';
 
-        const compiti = data.argomenti.filter(a => a.tipo.toLowerCase().includes('asseg'));
+        const compiti = data.argomenti.filter(a => a.tipo.toLowerCase().includes('asseg') || a.tipo.toLowerCase().includes('compit'));
         document.getElementById('dash-compiti').textContent = compiti.length;
 
         const assenzeNo = data.assenze.filter(a => !a.giustificata).length;
         document.getElementById('dash-assenze').textContent = data.assenze.length;
-        document.getElementById('dash-giustifiche').textContent = assenzeNo > 0 ? `Urgenti: ${assenzeNo} da giustificare` : 'Tutte giustificate';
-        if(assenzeNo > 0) document.getElementById('dash-giustifiche').className = 'text-danger font-bold';
+        const msgAssenze = document.getElementById('dash-giustifiche');
+        msgAssenze.textContent = assenzeNo > 0 ? `Incombe: ${assenzeNo} da giustificare` : 'Nessuna comunicazione pendente';
+        if(assenzeNo > 0) msgAssenze.style.color = 'var(--danger)';
 
-        // Dash Agenda Liste (Brevi)
+        // Dash Agenda Minimal
         const dAgenda = document.getElementById('dash-agenda');
         dAgenda.innerHTML = '';
-        data.agenda.slice(0, 3).forEach(a => {
+        data.agenda.slice(0, 4).forEach((a, index) => {
+            const isTask = a.tipo.toLowerCase().includes('compito');
             dAgenda.innerHTML += `
-            <div class="agenda-item ${a.tipo.toLowerCase().includes('compito') || a.tipo.toLowerCase().includes('ver') ? 'warning' : ''}">
-                <span class="a-time">${a.data} - ${a.orario || 'Orario ND'}</span>
-                <span class="a-title">${a.titolo}</span>
-                <span class="a-sub text-muted">${a.docente}</span>
-            </div>`;
+            <li class="${isTask ? 'is-task' : ''}">
+                <span class="a-time-s">${a.data} | ${a.orario || 'ND'}</span>
+                <span class="a-title-s">${a.titolo.length > 30 ? a.titolo.substring(0,30)+'...' : a.titolo}</span>
+                <span style="font-size:0.8rem; color:var(--text-muted)">${a.tipo.toUpperCase()}</span>
+            </li>`;
         });
-        if(data.agenda.length === 0) dAgenda.innerHTML = '<p class="text-muted">Nessun impegno a breve.</p>';
+        if(data.agenda.length === 0) dAgenda.innerHTML = '<li style="border-color:var(--text-muted)"><span class="a-title-s" style="font-weight:400; color:var(--text-muted)">Nessun appuntamento imminente.</span></li>';
 
         // --- 2. VOTI: TABELLA ---
         renderVotiTable(data.voti);
-
-        // Popola Dropdown Voti
         const filterStr = document.getElementById('filter-materia');
         const materieUniche = [...new Set(data.voti.map(v => v.materia))];
         materieUniche.forEach(mat => filterStr.innerHTML += `<option value="${mat}">${mat}</option>`);
 
-        // --- 3. AGENDA COMPLETA ---
+        // --- 3. AGENDA GRID ---
         const agendaC = document.getElementById('agenda-container');
         agendaC.innerHTML = '';
         data.agenda.forEach(a => {
+            const badgeCol = a.tipo.toLowerCase().includes('ver') ? 'bg-danger' : 'bg-primary-soft';
             agendaC.innerHTML += `
-            <div class="cal-card">
-                <div class="cal-top">
-                    <span>${a.data}</span> <span>${a.orario || '--:--'}</span>
+            <div class="ac-card">
+                <div class="ac-header">
+                    <span class="ac-date">${a.data}</span>
+                    <span class="ac-time">${a.orario || 'Orario Indefinto'}</span>
                 </div>
-                <div class="cal-body">
-                    <span class="badge ${a.tipo.toLowerCase().includes('verif')?'bg-danger':'bg-primary'}">${a.tipo}</span>
-                    <h4>${a.titolo}</h4>
-                    <p class="text-muted" style="margin-top:auto;"><i class="fa-solid fa-user-tie"></i> ${a.docente}</p>
-                </div>
+                <span class="badge ${badgeCol}" style="align-self:flex-start;">${a.tipo}</span>
+                <span class="ac-titolo">${a.titolo}</span>
+                <div class="ac-docente"><i class="fa-solid fa-chalkboard-user" style="margin-right:6px"></i>${a.docente || '-'}</div>
             </div>`;
         });
 
-        // --- 4. KANBAN COMPITI ---
+        // --- 4. KANBAN COMPITI FLAT ---
         const kTodo = document.getElementById('col-todo');
         const kStudio = document.getElementById('col-studio');
         kTodo.innerHTML = ''; kStudio.innerHTML = '';
         
         let todoCount = 0;
         compiti.forEach((c, idx) => {
-            // Task board per assegnazioni
             kTodo.innerHTML += `
-            <div class="task-card" id="task-${idx}" onclick="this.classList.toggle('is-done'); updateTaskCount();">
-                <span class="tc-date">${c.data} | ${c.stato || 'Assegnato'}</span>
-                <h4>${c.materia}</h4>
-                <p>${c.contenuto}</p>
-                <div class="tc-footer"><i class="fa-solid fa-check"></i> Clicca per completare</div>
+            <div class="k-task" id="task-${idx}" onclick="this.classList.toggle('done'); updateTaskCount();">
+                <span class="k-meta">${c.materia} &bull; ${c.stato || 'Giorno ' + c.data}</span>
+                <div class="k-titolo">${c.tipo.toUpperCase()}</div>
+                <div class="k-desc">${c.contenuto}</div>
             </div>`;
             todoCount++;
         });
         document.getElementById('count-todo').textContent = todoCount;
 
-        // Materiale Studio
-        data.argomenti.filter(a => !a.tipo.toLowerCase().includes('asseg')).forEach(c => {
+        data.argomenti.filter(a => !a.tipo.toLowerCase().includes('asseg') && !a.tipo.toLowerCase().includes('compit')).forEach(c => {
             kStudio.innerHTML += `
-            <div class="task-card is-studio">
-                <span class="tc-date">${c.data}</span>
-                <h4>${c.materia}</h4>
-                <p>${c.contenuto}</p>
-                <div class="tc-footer">Lezione eseguita in classe</div>
+            <div class="k-task studio">
+                <span class="k-meta">${c.materia} &bull; ${c.data}</span>
+                <div class="k-titolo">${c.tipo.toUpperCase()}</div>
+                <div class="k-desc">${c.contenuto}</div>
             </div>`;
         });
 
@@ -262,45 +240,46 @@ document.addEventListener('DOMContentLoaded', () => {
         const tAssenze = document.getElementById('assenze-body');
         tAssenze.innerHTML = '';
         data.assenze.forEach(a => {
+            const check = a.giustificata ? '<span style="color:var(--success);font-weight:600;"><i class="fa-solid fa-check"></i> Giustificata</span>' : '<span style="color:var(--danger);font-weight:600;"><i class="fa-solid fa-xmark"></i> Richiesta Validazione</span>';
             tAssenze.innerHTML += `
             <tr>
-                <td style="font-weight:700;">${a.data}</td>
-                <td><span class="badge bg-primary">${a.tipo}</span></td>
-                <td>${a.descrizione || 'Nessuna specifica'}</td>
-                <td style="font-weight:600;" class="${a.giustificata?'text-success':'text-danger'}">
-                    ${a.giustificata?'<i class="fa-solid fa-circle-check"></i> Giustificata':'<i class="fa-solid fa-triangle-exclamation"></i> Da Giustificare'}
-                </td>
+                <td style="font-weight:600; color:var(--text-main)">${a.data}</td>
+                <td><span class="badge bg-primary-soft">${a.tipo}</span></td>
+                <td style="color:var(--text-muted)">${a.descrizione || '-'}</td>
+                <td>${check}</td>
             </tr>`;
         });
+        if(data.assenze.length === 0) tAssenze.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Nessuna assenza nei registri.</td></tr>';
 
         // --- 6. NOTE ---
         const nCont = document.getElementById('note-body');
         nCont.innerHTML = '';
         data.note.forEach(n => {
             nCont.innerHTML += `
-            <div class="note-box">
-                <div class="n-icon"><i class="fa-solid fa-bell"></i></div>
-                <div>
-                    <h4 class="text-danger mb-15">Avviso Disciplinare</h4>
+            <div class="note-item-clean">
+                <i class="fa-solid fa-bell"></i>
+                <div style="flex:1">
+                    <span style="display:block; font-size:0.85rem; font-weight:700; color:var(--danger); text-transform:uppercase; margin-bottom:5px">Segnalazione Disciplinare</span>
                     <p>"${n.contenuto}"</p>
                 </div>
             </div>`;
         });
-        if(data.note.length === 0) nCont.innerHTML = '<p class="text-muted"><i class="fa-solid fa-face-smile"></i> Condotta esemplare, nessuna nota.</p>';
+        if(data.note.length === 0) nCont.innerHTML = '<span style="color:var(--success); font-weight:600;"><i class="fa-solid fa-face-smile" style="margin-right:8px;"></i> Nessuna nota disciplinare o annotazione.</span>';
     }
 
+
+    /* ==== LIBRERIA KANBAN: DRAG & DROP LOGIC ==== */
     window.updateTaskCount = () => {
-        const todos = document.querySelectorAll('#col-todo .task-card:not(.is-done)').length;
-        const doneList = document.querySelectorAll('#col-todo .task-card.is-done');
+        const todos = document.querySelectorAll('#col-todo .k-task:not(.done)').length;
+        const doneList = document.querySelectorAll('#col-todo .k-task.done');
         document.getElementById('count-todo').textContent = todos;
         document.getElementById('count-done').textContent = doneList.length;
         
-        // Sposta visualmente i completati nella colonna "Done"
         const colDone = document.getElementById('col-done');
         doneList.forEach(t => {
-            colDone.appendChild(t); // Muove l'elemento nel DOM
-            t.onclick = function() { // Se lo riclicca lo rimette in Todo
-                this.classList.remove('is-done');
+            colDone.appendChild(t); 
+            t.onclick = function() { 
+                this.classList.remove('done');
                 document.getElementById('col-todo').appendChild(this);
                 window.updateTaskCount();
             }
@@ -312,7 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('count-done').textContent = '0';
     });
 
-    // Filtri Voti e Ricerca
+    /* ==== RICERCH E FILTRI ==== */
     document.getElementById('filter-materia').addEventListener('change', (e) => {
         const val = e.target.value;
         document.querySelectorAll('#voti-body tr').forEach(r => {
@@ -334,7 +313,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     DOM.searchGlobal.addEventListener('input', (e) => {
         const query = e.target.value.toLowerCase();
-        // Cerca velocemente nella tabella voti
         if(document.getElementById('view-voti').classList.contains('active')) {
             document.querySelectorAll('#voti-body tr').forEach(r => {
                 const text = r.textContent.toLowerCase();
@@ -348,24 +326,25 @@ document.addEventListener('DOMContentLoaded', () => {
         tbody.innerHTML = '';
         votiArray.forEach(v => {
             const num = getNumericalVoto(v.voto);
-            let bClass = 'voto-badge m-orange';
-            if(num >= 8) bClass = 'voto-badge m-green';
-            if(num < 6) bClass = 'voto-badge m-red';
+            let circleClass = 'voto-circle v-orange';
+            let labelBadge = '<span class="badge bg-primary-soft">Neutrale</span>';
+            
+            if(num >= 8) { circleClass = 'voto-circle v-green'; labelBadge = '<span class="badge bg-success">Ottimo</span>'; }
+            else if(num < 6 && num !== null) { circleClass = 'voto-circle v-red'; labelBadge = '<span class="badge bg-danger">Da Recuperare</span>'; }
 
             tbody.innerHTML += `
             <tr data-materia="${v.materia}">
-                <td class="text-muted"><i class="fa-regular fa-calendar" style="margin-right:8px;"></i>${v.data}</td>
-                <td>${v.materia}</td>
-                <td><span class="${bClass}">${v.voto}</span></td>
-                <td><span class="badge ${num >= 6 ? 'bg-success' : 'bg-danger'}">${num >= 6 ? 'Positivo' : 'Insufficienza'}</span></td>
+                <td style="color:var(--text-muted); font-size:0.85rem">${v.data}</td>
+                <td style="font-weight:600; color:var(--text-main)">${v.materia}</td>
+                <td><div class="${circleClass}">${v.voto}</div></td>
+                <td>${labelBadge}</td>
             </tr>`;
         });
     }
 
-    /* ==== CHARTS.JS GENERATION ==== */
-    // Costanti per i colori moderni
-    Chart.defaults.color = '#94a3b8';
-    Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
+    /* ==== CHART.JS ACADEMIC STYLES ==== */
+    Chart.defaults.color = '#6b7280';
+    Chart.defaults.font.family = "'Inter', sans-serif";
 
     function renderDashChart(data) {
         if(chartsInstance.dash) chartsInstance.dash.destroy();
@@ -374,26 +353,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const ctx = document.getElementById('dashChart').getContext('2d');
         const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-        gradient.addColorStop(0, 'rgba(99, 102, 241, 0.5)'); // primary var
-        gradient.addColorStop(1, 'rgba(99, 102, 241, 0.05)');
+        gradient.addColorStop(0, 'rgba(29, 78, 216, 0.2)'); // primary-light var
+        gradient.addColorStop(1, 'rgba(29, 78, 216, 0)');
 
         chartsInstance.dash = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: votivalidi.slice(-15).map((_, i) => i+1),
+                labels: votivalidi.slice(-12).map((_, i) => "Valutazione"),
                 datasets: [{
-                    label: 'Ultime Performance',
-                    data: votivalidi.slice(-15),
-                    fill: true, backgroundColor: gradient, borderColor: '#6366f1', borderWidth: 3, tension: 0.4,
-                    pointBackgroundColor: '#fff', pointBorderColor: '#6366f1', pointRadius: 4, pointHoverRadius: 6
+                    label: 'Trend Voti Recenti',
+                    data: votivalidi.slice(-12),
+                    fill: true, backgroundColor: gradient, borderColor: '#1d4ed8', borderWidth: 2, tension: 0.3,
+                    pointBackgroundColor: '#1d4ed8', pointBorderColor: '#fff', pointRadius: 4, pointHoverRadius: 6
                 }]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: { 
-                    y: { min: 2, max: 10, grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false }},
-                    x: { display: false }
+                    y: { min: 2, max: 10, grid: { color: '#e5e7eb', drawBorder: false }},
+                    x: { display: false, grid: { display: false } }
                 }
             }
         });
@@ -410,12 +389,9 @@ document.addEventListener('DOMContentLoaded', () => {
             materieMap[v.materia].c++;
         });
 
-        const labels = Object.keys(materieMap).map(m => m.substring(0,10)+ (m.length>10?'..':''));
+        const labels = Object.keys(materieMap).map(m => m.substring(0,18)+ (m.length>18?'..':''));
         const medie = Object.keys(materieMap).map(m => (materieMap[m].s / materieMap[m].c).toFixed(2));
         
-        // Colori barre dinamici base voto
-        const bgColors = medie.map(m => m >= 6 ? 'rgba(16, 185, 129, 0.85)' : 'rgba(239, 68, 68, 0.85)');
-
         const ctx = document.getElementById('materieChart').getContext('2d');
         chartsInstance.medie = new Chart(ctx, {
             type: 'bar',
@@ -424,15 +400,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 datasets: [{
                     label: 'Media Materia',
                     data: medie,
-                    backgroundColor: bgColors,
-                    borderRadius: 6
+                    backgroundColor: medie.map(m => m >= 6 ? '#1d4ed8' : '#dc2626'),
+                    borderRadius: 4
                 }]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
-                    y: { min: 0, max: 10, grid: { borderDash: [5,5], color: 'rgba(255,255,255,0.05)'} },
+                    y: { min: 0, max: 10, grid: { color: '#e5e7eb'} },
                     x: { grid: { display: false } }
                 }
             }
