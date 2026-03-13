@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="it">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -12,6 +13,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
+
 <body>
 
     <!-- Schermata di Login - Stile Apple ID -->
@@ -22,7 +24,7 @@
             </div>
             <h1 class="login-title">EduTrack</h1>
             <p class="login-subtitle">Accedi al tuo registro elettronico personale</p>
-            
+
             <form id="login-form">
                 <div class="apple-input-group">
                     <input type="text" id="username" class="apple-input" placeholder="Codice Studente" required>
@@ -32,13 +34,13 @@
                     <button type="button" class="eye-btn" id="toggle-password"><i class="fa-solid fa-eye"></i></button>
                 </div>
                 <div class="error-msg" id="login-error"></div>
-                
+
                 <button type="submit" class="btn-apple btn-primary" id="login-btn">
                     <span class="btn-text">Continua</span>
                     <div class="spinner" style="display: none;"></div>
                 </button>
             </form>
-            
+
             <div class="login-footer">Protezione dati tramite crittografia standard d'istituto.</div>
         </div>
     </div>
@@ -54,7 +56,7 @@
 
     <!-- App Principale - Layout Mac/iPad -->
     <div id="app-screen" class="screen main-wrapper">
-        
+
         <!-- Sidebar - Stile macOS Dark / Clean -->
         <aside class="sidebar">
             <div class="sidebar-header">
@@ -94,13 +96,14 @@
                         <span>Matricola</span>
                     </div>
                 </div>
-                <button id="logout-btn" class="logout-icon" title="Esci"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
+                <button id="logout-btn" class="logout-icon" title="Esci"><i
+                        class="fa-solid fa-arrow-right-from-bracket"></i></button>
             </div>
         </aside>
 
         <!-- Main Content Area -->
         <main class="content-area">
-            
+
             <!-- Header Superiore -->
             <header class="top-nav blur-header">
                 <h2 id="page-title" class="page-title">Dashboard</h2>
@@ -114,10 +117,10 @@
             </header>
 
             <div class="scroll-container">
-                
+
                 <!-- 1. DASHBOARD -->
                 <section id="view-dashboard" class="app-view active">
-                    
+
                     <div class="hero-section stagger-1">
                         <h1>Benvenuto, <span class="text-primary">ecco il tuo andamento.</span></h1>
                         <p class="hero-sub">Tutte le informazioni sulla tua carriera scolastica, in tempo reale.</p>
@@ -157,7 +160,9 @@
                         <div class="bento-card bento-agenda hover-scale">
                             <div class="bento-header flex-between">
                                 <h3>Oggi & Domani</h3>
-                                <button class="btn-icon-minimal" onclick="document.querySelector('[data-target=\'agenda\']').click()"><i class="fa-solid fa-plus"></i></button>
+                                <button class="btn-icon-minimal"
+                                    onclick="document.querySelector('[data-target=\'agenda\']').click()"><i
+                                        class="fa-solid fa-plus"></i></button>
                             </div>
                             <ul class="clean-list" id="dash-agenda"></ul>
                         </div>
@@ -226,9 +231,9 @@
                             </div>
                             <div class="kanban-body" id="col-done"></div>
                         </div>
-                        
+
                         <div class="kanban-column">
-                             <div class="kanban-header">
+                            <div class="kanban-header">
                                 <h3>Studio Assegnato</h3>
                             </div>
                             <div class="kanban-body" id="col-studio"></div>
@@ -264,4 +269,5 @@
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
+
 </html>
