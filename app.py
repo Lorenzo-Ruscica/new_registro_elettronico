@@ -3,7 +3,7 @@ from MastercomAPI import MastercomAPI
 import os
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+app.secret_key = "MASTERCOM_AGNELLI_SECURE_CLOUD_KEY_2026"
 
 @app.route("/")
 def index():
