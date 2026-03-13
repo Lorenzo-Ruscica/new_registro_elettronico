@@ -18,7 +18,7 @@ class MastercomAPI:
         payload = {
             "user": self.user,
             "password_user": self.password,
-            "db_key": "mastercom_2025_2026",
+            "db_key": "mastercom_2025_2026",    
             "login_ts": int(time.time()),
             "form_login": "true"
         }
@@ -34,17 +34,6 @@ class MastercomAPI:
             }
             return True
         except (TypeError, KeyError):
-            # Invece di creare un file (vietato su Vercel), stampiamo nei LOG
-            print(f"[!] Login fallito per l'utente: {self.user}")
-            
-            # Cerchiamo se c'è un messaggio di errore rosso nella pagina di Mastercom
-            errore_testo = soup.find('div', class_='alert') or soup.find('div', class_='error')
-            if errore_testo:
-                print(f"[!] Motivo: {errore_testo.text.strip()}")
-            else:
-                # Stampiamo un pezzo di HTML nei log per capire dove siamo finiti
-                print(f"[!] HTML Ricevuto: {res.text[:500]}")
-                
             return False
 
 # --- SEZIONE VOTI ---
