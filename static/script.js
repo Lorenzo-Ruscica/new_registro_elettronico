@@ -187,12 +187,25 @@ $('toggle-pwd').addEventListener('click', () => {
 });
 
 // ────────────────────────────────────────────────────
+// REMEMBER-ME: Precompila i campi al caricamento
+// ────────────────────────────────────────────────────
+(function loadSavedCredentials() {
+    const saved = JSON.parse(localStorage.getItem('edu-creds') || 'null');
+    if (saved) {
+        $('username').value = saved.u || '';
+        $('password').value = saved.p || '';
+        $('remember-me').checked = true;
+    }
+})();
+
+// ────────────────────────────────────────────────────
 // LOGIN
 // ────────────────────────────────────────────────────
 $('login-form').addEventListener('submit', async e => {
     e.preventDefault();
     const username = $('username').value.trim();
     const password = $('password').value;
+    const remember = $('remember-me').checked;
     const errEl    = $('login-error');
     const btn      = $('login-btn');
     const ctaTxt   = btn.querySelector('.cta-text');
@@ -212,7 +225,12 @@ $('login-form').addEventListener('submit', async e => {
         const data = await res.json();
 
         if (data.success) {
-            // Set user avatar initial
+            // Salva credenziali se remember-me attivo
+            if (remember) {
+                localStorage.setItem('edu-creds', JSON.stringify({ u: username, p: password }));
+            } else {
+                localStorage.removeItem('edu-creds');
+            }
             $('user-display').textContent      = username;
             $('sb-avatar-initial').textContent = username[0]?.toUpperCase() || 'S';
             switchScreen('sync-screen');
@@ -225,7 +243,6 @@ $('login-form').addEventListener('submit', async e => {
         ctaTxt.hidden  = false;
         ctaLoad.hidden = true;
         btn.disabled   = false;
-        // Shake animation
         $('login-form').animate([
             { transform:'translateX(-6px)' },
             { transform:'translateX(6px)' },
@@ -399,7 +416,7 @@ function renderVotiTable(voti) {
     });
 }
 
-// ── AGENDA ─────────────────────────────────────────
+// ── AGENDA (grouped by day) ────────────────────────
 function populateAgenda(agenda) {
     renderAgenda(agenda, 'all');
     $('filter-tipo-agenda').addEventListener('change', e => renderAgenda(agenda, e.target.value));
@@ -408,6 +425,8 @@ function populateAgenda(agenda) {
 function renderAgenda(agenda, filter) {
     const cont = $('agenda-container');
     cont.innerHTML = '';
+    cont.classList.add('agenda-by-day');
+
     const filtered = filter === 'all' ? agenda : agenda.filter(a => {
         const t = a.tipo.toLowerCase();
         if (filter === 'verifica') return t.includes('ver');
@@ -419,109 +438,386 @@ function renderAgenda(agenda, filter) {
         cont.innerHTML = `<p style="color:var(--c-muted);padding:20px">Nessun evento trovato.</p>`;
         return;
     }
+
+    // Raggruppa per data
+    const byDay = {};
     filtered.forEach(a => {
-        const isV = /ver/i.test(a.tipo);
-        const isC = /compit|asseg/i.test(a.tipo);
-        const badge = isV ? 'badge-danger' : isC ? 'badge-warn' : 'badge-primary';
-        cont.innerHTML += `
-        <div class="ag-card">
-            <div class="ag-top">
-                <span class="ag-date"><i class='fa-regular fa-calendar' style='margin-right:5px'></i>${a.data}</span>
-                <span class="badge ${badge}">${a.tipo}</span>
+        const dayKey = a.data || 'Senza data';
+        if (!byDay[dayKey]) byDay[dayKey] = [];
+        byDay[dayKey].push(a);
+    });
+
+    // Ordina le date
+    const sortedDays = Object.keys(byDay).sort((a, b) => {
+        const pa = parseDateIT(a), pb = parseDateIT(b);
+        return pa - pb;
+    });
+
+    sortedDays.forEach(day => {
+        const items  = byDay[day];
+        const dateObj = parseDateIT(day);
+        const isValid = !isNaN(dateObj.getTime());
+        const dayName = isValid ? dateObj.toLocaleDateString('it-IT', { weekday:'long' }).replace(/^./, c => c.toUpperCase()) : day;
+        const dayFull = isValid ? dateObj.toLocaleDateString('it-IT', { day:'numeric', month:'long', year:'numeric' }) : day;
+        const today   = new Date(); today.setHours(0,0,0,0);
+        const isPast  = isValid && dateObj < today;
+
+        const block = document.createElement('div');
+        block.className = 'agenda-day-block';
+        block.innerHTML = `
+        <div class="agenda-day-header">
+            <div class="agenda-day-pill" style="${isPast ? 'opacity:.55' : ''}">
+                <i class="fa-regular fa-calendar"></i>${dayName}
             </div>
-            <div class="ag-title">${a.titolo}</div>
-            <div class="ag-docente"><i class='fa-solid fa-chalkboard-user'></i>${a.docente || 'Docente ND'}</div>
-            ${a.orario ? `<div class="ag-docente"><i class='fa-regular fa-clock'></i>${a.orario}</div>` : ''}
-        </div>`;
+            <span class="agenda-day-full">${dayFull}</span>
+            <div class="agenda-day-line"></div>
+            <span class="agenda-day-count">${items.length} evento${items.length > 1 ? 'i' : ''}</span>
+        </div>
+        <div class="agenda-day-grid" id="daygrid-${day.replace(/\//g,'-')}"></div>`;
+
+        cont.appendChild(block);
+
+        const grid = block.querySelector('.agenda-day-grid');
+        items.forEach(a => {
+            const isV   = /ver/i.test(a.tipo);
+            const isC   = /compit|asseg/i.test(a.tipo);
+            const badge = isV ? 'badge-danger' : isC ? 'badge-warn' : 'badge-primary';
+            const cls   = isV ? 'ag-verifica' : isC ? 'ag-compito' : 'ag-evento';
+            grid.innerHTML += `
+            <div class="ag-card ${cls}" style="${isPast ? 'opacity:.6' : ''}">
+                <div class="ag-top">
+                    <span class="ag-date"><i class='fa-regular fa-clock' style='margin-right:5px'></i>${a.orario || '—'}</span>
+                    <span class="badge ${badge}">${a.tipo}</span>
+                </div>
+                <div class="ag-title">${a.titolo}</div>
+                <div class="ag-docente"><i class='fa-solid fa-chalkboard-user'></i>${a.docente || 'ND'}</div>
+            </div>`;
+        });
     });
 }
 
-// ── COMPITI/KANBAN ──────────────────────────────────
-function populateCompiti(argomenti) {
-    const compiti = argomenti.filter(a => /asseg|compit/i.test(a.tipo));
-    const studio  = argomenti.filter(a => !/asseg|compit/i.test(a.tipo));
-
-    const colTodo   = $('col-todo');
-    const colStudio = $('col-studio');
-    colTodo.innerHTML   = '';
-    colStudio.innerHTML = '';
-
-    compiti.forEach((c, i) => {
-        colTodo.innerHTML += `
-        <div class="k-card" id="kc-${i}" onclick="toggleTask(this)">
-            <span class="k-meta">${c.materia} · ${c.data}</span>
-            <div class="k-title">${c.tipo}</div>
-            <div class="k-desc">${truncate(c.contenuto, 100)}</div>
-        </div>`;
-    });
-
-    studio.forEach(c => {
-        colStudio.innerHTML += `
-        <div class="k-card studio">
-            <span class="k-meta">${c.materia} · ${c.data}</span>
-            <div class="k-title">${c.tipo}</div>
-            <div class="k-desc">${truncate(c.contenuto, 100)}</div>
-        </div>`;
-    });
-
-    updateKanbanCounts();
-}
-
-window.toggleTask = function(card) {
-    if (card.classList.contains('studio')) return;
-    card.classList.toggle('done');
-    const colDone = $('col-done');
-    const colTodo = $('col-todo');
-
-    card.animate([{opacity:0, transform:'scale(0.9)'},{opacity:1, transform:'scale(1)'}], {duration:280, easing:'cubic-bezier(.34,1.56,.64,1)'});
-
-    if (card.classList.contains('done')) {
-        colDone.appendChild(card);
-    } else {
-        colTodo.appendChild(card);
+function parseDateIT(str) {
+    if (!str) return new Date(NaN);
+    // Formato DD/MM/YYYY o YYYY-MM-DD
+    if (str.includes('/')) {
+        const [d, m, y] = str.split('/').map(Number);
+        return new Date(y, m - 1, d);
     }
-    updateKanbanCounts();
-};
-
-function updateKanbanCounts() {
-    $('count-todo').textContent = $('col-todo').querySelectorAll('.k-card').length;
-    $('count-done').textContent = $('col-done').querySelectorAll('.k-card').length;
+    return new Date(str);
 }
 
-$('clear-done').addEventListener('click', () => {
-    $('col-done').innerHTML = '';
-    updateKanbanCounts();
-});
+// ── COMPITI — TIMELINE per DATA ────────────────────
+let _allArgomenti = [];
 
-// ── ASSENZE ─────────────────────────────────────────
-function populateAssenze(assenze) {
-    const tot  = assenze.length;
-    const ok   = assenze.filter(a => a.giustificata).length;
-    const ng   = tot - ok;
+function populateCompiti(argomenti) {
+    _allArgomenti = argomenti;
+    renderTimeline(argomenti, 'all');
 
-    animateValue($('sum-tot'), 0, tot, 600);
-    animateValue($('sum-ok'),  0, ok,  600);
-    animateValue($('sum-ng'),  0, ng,  600);
+    // Filter buttons
+    const btnAll     = $('filter-compiti-all');
+    const btnCompiti = $('filter-compiti-compiti');
+    const btnStudio  = $('filter-compiti-studio');
 
-    const tbody = $('assenze-body');
-    tbody.innerHTML = '';
-    if (!assenze.length) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--c-muted)">Nessuna assenza registrata.</td></tr>`;
+    function setActive(active) {
+        [btnAll, btnCompiti, btnStudio].forEach(b => b.classList.remove('active'));
+        active.classList.add('active');
+    }
+    btnAll.addEventListener('click',     () => { setActive(btnAll);     renderTimeline(_allArgomenti, 'all'); });
+    btnCompiti.addEventListener('click', () => { setActive(btnCompiti); renderTimeline(_allArgomenti, 'compiti'); });
+    btnStudio.addEventListener('click',  () => { setActive(btnStudio);  renderTimeline(_allArgomenti, 'studio'); });
+}
+
+function renderTimeline(argomenti, filter) {
+    const tl = $('compiti-timeline');
+    tl.innerHTML = '';
+
+    // Filtra
+    let items = argomenti;
+    if (filter === 'compiti') items = argomenti.filter(a =>  /asseg|compit/i.test(a.tipo));
+    if (filter === 'studio')  items = argomenti.filter(a => !/asseg|compit/i.test(a.tipo));
+
+    if (!items.length) {
+        tl.innerHTML = `<p style="color:var(--c-muted);padding:20px">Nessun elemento trovato.</p>`;
         return;
     }
-    assenze.forEach(a => {
-        const stato = a.giustificata
-            ? `<span class='badge badge-ok'><i class='fa-solid fa-check'></i> Giustificata</span>`
-            : `<span class='badge badge-danger'><i class='fa-solid fa-xmark'></i> Da giustificare</span>`;
-        tbody.innerHTML += `
-        <tr>
-            <td style="font-weight:600">${a.data}</td>
-            <td><span class="badge badge-muted">${a.tipo}</span></td>
-            <td style="color:var(--c-muted)">${a.descrizione || '—'}</td>
-            <td>${stato}</td>
-        </tr>`;
+
+    // Raggruppa per data
+    const byDay = {};
+    items.forEach(a => {
+        const k = a.data || 'Senza data';
+        if (!byDay[k]) byDay[k] = [];
+        byDay[k].push(a);
+    });
+
+    const sortedDays = Object.keys(byDay).sort((a, b) => parseDateIT(b) - parseDateIT(a)); // più recenti prima
+
+    // Carica dati completati da localStorage
+    const doneSet = new Set(JSON.parse(localStorage.getItem('edu-done') || '[]'));
+
+    sortedDays.forEach(day => {
+        const dayItems = byDay[day];
+        const dateObj = parseDateIT(day);
+        const isValid = !isNaN(dateObj.getTime());
+        const dayNum  = isValid ? dateObj.getDate() : '?';
+        const dayMon  = isValid ? dateObj.toLocaleDateString('it-IT', { month:'short' }).toUpperCase() : '';
+        const dayFull = isValid ? dateObj.toLocaleDateString('it-IT', { weekday:'long', day:'numeric', month:'long' }).replace(/^./, c => c.toUpperCase()) : day;
+
+        const block = document.createElement('div');
+        block.className = 'tl-day-block';
+        block.innerHTML = `
+        <div class="tl-day-header">
+            <div class="tl-day-dot">
+                <span class="tl-dot-num">${dayNum}</span>
+                <span class="tl-dot-mon">${dayMon}</span>
+            </div>
+            <div class="tl-day-info">
+                <div class="tl-day-name">${dayFull}</div>
+                <div class="tl-day-count">${dayItems.length} attività</div>
+            </div>
+        </div>
+        <div class="tl-cards" id="tlcards-${day.replace(/\//g,'-')}"></div>`;
+
+        tl.appendChild(block);
+        const cardsContainer = block.querySelector('.tl-cards');
+
+        dayItems.forEach((c, idx) => {
+            const isCompito = /asseg|compit/i.test(c.tipo);
+            const accentCls = isCompito ? 'compito' : 'studio';
+            const cardKey   = `${day}_${c.materia}_${idx}`;
+            const isDone    = doneSet.has(cardKey);
+
+            const card = document.createElement('div');
+            card.className = `tl-card${isDone ? ' done' : ''}${!isCompito ? ' studio' : ''}` ;
+            card.dataset.key = cardKey;
+            card.innerHTML = `
+            <div class="tl-card-accent ${accentCls}"></div>
+            <div class="tl-card-body">
+                <span class="tl-card-meta">${c.materia} · <span class="badge ${isCompito ? 'badge-warn' : 'badge-ok'}">${c.tipo}</span></span>
+                <div class="tl-card-main">${c.tipo}</div>
+                <div class="tl-card-desc">${truncate(c.contenuto, 120)}</div>
+            </div>
+            ${isCompito ? `<button class="tl-check-btn" title="Segna completato"><i class="fa-${isDone ? 'solid' : 'regular'} fa-circle-check"></i></button>` : ''}`;
+
+            if (isCompito) {
+                card.querySelector('.tl-check-btn').addEventListener('click', () => {
+                    card.classList.toggle('done');
+                    const nowDone = card.classList.contains('done');
+                    const ico = card.querySelector('.tl-check-btn i');
+                    ico.className = `fa-${nowDone ? 'solid' : 'regular'} fa-circle-check`;
+                    // Animazione
+                    card.animate(
+                        [{ transform:'scale(.96)' }, { transform:'scale(1)' }],
+                        { duration:250, easing:'cubic-bezier(.34,1.56,.64,1)' }
+                    );
+                    // Persisti in localStorage
+                    const ds = new Set(JSON.parse(localStorage.getItem('edu-done') || '[]'));
+                    nowDone ? ds.add(cardKey) : ds.delete(cardKey);
+                    localStorage.setItem('edu-done', JSON.stringify([...ds]));
+                });
+            }
+            cardsContainer.appendChild(card);
+        });
     });
 }
+
+// ── ASSENZE ─────────────────────────────────────────
+
+/* ===================================================
+   CALCOLO ORE SCUOLA — Istituto Tecnico 2025/2026
+   Lun/Mar/Mer/Ven/Sab = 6h  |  Gio = 8h
+   (Questa scuola: Lun–Ven, calcola Sabato se in programma)
+   Anno scolastico: 15 Sep 2025 → 10 Jun 2026
+   Esclusi: festivi nazionali italiani standard
+   =================================================== */
+
+const SCHOOL_START = new Date(2025, 8, 15); // 15 Settembre 2025
+const SCHOOL_END   = new Date(2026, 5, 10); // 10 Giugno 2026
+
+// Festivi nazionali fissi (MM-DD) + festivi anno specifico
+const FESTIVI_FISSI = new Set([
+    '01-01', '01-06', '04-25', '05-01', '06-02',
+    '08-15', '11-01', '12-08', '12-25', '12-26',
+]);
+// Festivi mobili 2025-2026 (Pasqua 5 Apr 2026 → Lunedì Angelo 6 Apr 2026)
+const FESTIVI_DATE = new Set([
+    '2025-11-02', // Commemorazione defunti (pontes comuni)
+    '2025-12-24', '2025-12-27', '2025-12-28', '2025-12-29',
+    '2025-12-30', '2025-12-31', '2026-01-02',  // Vacanze Natale
+    '2026-03-02', '2026-03-03', '2026-03-04',  // Carnevale (appross.)
+    '2026-04-05', '2026-04-06',                // Pasqua + Lunedì
+]);
+
+function isFestivo(d) {
+    const mmdd = `${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const yyyymmdd = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    return FESTIVI_FISSI.has(mmdd) || FESTIVI_DATE.has(yyyymmdd);
+}
+
+function getOrePer(date) {
+    const dow = date.getDay(); // 0=Dom 1=Lun 2=Mar 3=Mer 4=Gio 5=Ven 6=Sab
+    if (dow === 0) return 0; // Domenica no scuola
+    if (isFestivo(date)) return 0;
+    return dow === 4 ? 8 : 6; // Giovedì=8, altri giorni scolastici=6
+}
+
+function calcTotaleOreAnno() {
+    let tot = 0;
+    const cur = new Date(SCHOOL_START);
+    while (cur <= SCHOOL_END) {
+        tot += getOrePer(cur);
+        cur.setDate(cur.getDate() + 1);
+    }
+    return tot;
+}
+
+function classifyAssenza(tipo) {
+    const t = tipo.toLowerCase();
+    if (t.includes('ritardo') || t.includes('entrat') || t.includes('in ritardo')) return 'ritardo';
+    if (t.includes('uscit') || t.includes('permess') || t.includes('anticipata')) return 'uscita';
+    if (t.includes('assenz') || t.includes('absent')) return 'assenza';
+    return 'altro';
+}
+
+function calcOreAssenza(tipo, dataStr) {
+    const cat = classifyAssenza(tipo);
+    if (cat === 'assenza') {
+        // Ore intere basate sul giorno della settimana
+        const d = parseDateIT(dataStr);
+        if (!isNaN(d.getTime())) return getOrePer(d) || 6;
+        return 6;
+    }
+    if (cat === 'ritardo' || cat === 'uscita') {
+        // Un ritardo/uscita conta come 1h equivalente
+        return 1;
+    }
+    return 1;
+}
+
+function populateAssenze(assenze) {
+    const SOGLIA_PCT = 25;
+    const totAnno   = calcTotaleOreAnno();
+
+    // Classificazione
+    let nAssenze = 0, nRitardi = 0, nUscite = 0, nOk = 0, nNg = 0;
+    let oreAssenze = 0, oreRitardi = 0, oreUscite = 0, oreTotMancate = 0;
+
+    assenze.forEach(a => {
+        const cat = classifyAssenza(a.tipo);
+        const ore = calcOreAssenza(a.tipo, a.data);
+        oreTotMancate += ore;
+
+        if (cat === 'assenza') { nAssenze++; oreAssenze += ore; }
+        else if (cat === 'ritardo') { nRitardi++; oreRitardi += ore; }
+        else if (cat === 'uscita')  { nUscite++;  oreUscite += ore; }
+
+        if (a.giustificata) nOk++;
+        else nNg++;
+    });
+
+    const pct       = totAnno > 0 ? (oreTotMancate / totAnno) * 100 : 0;
+    const pctStr    = pct.toFixed(1);
+    const oreRimaste = Math.max(0, totAnno * (SOGLIA_PCT / 100) - oreTotMancate);
+
+    // ── Barra rischio ────────────────────────────────────
+    const badge   = $('arc-pct-badge');
+    const barFill = $('arc-bar-fill');
+
+    // Anima la barra da 0 a pct (ma la barra rappresenta pct su 100%, con soglia visuale al 25%)
+    // La barra piena = 100% corrisponde alla soglia (25% delle ore); oltre la soglia la barra va oltre
+    const barPct = Math.min((pct / SOGLIA_PCT) * 100, 110); // vai fino a 110% per mostrare il superamento
+
+    setTimeout(() => {
+        barFill.style.width = barPct + '%';
+    }, 300);
+
+    badge.textContent = pctStr + '%';
+    badge.className   = 'arc-pct-badge';
+    barFill.className = 'arc-bar-fill';
+
+    if (pct >= SOGLIA_PCT) {
+        badge.classList.add('pct-danger');
+        barFill.classList.add('bar-danger');
+    } else if (pct >= SOGLIA_PCT * 0.7) {
+        badge.classList.add('pct-warn');
+        barFill.classList.add('bar-warn');
+    }
+
+    $('arc-legend-hours').textContent  = `${oreTotMancate}h mancate`;
+    $('arc-legend-total').textContent  = `su ${totAnno}h totali anno scolastico`;
+    const leftEl = $('arc-legend-left');
+    if (pct >= SOGLIA_PCT) {
+        leftEl.innerHTML = `<span style="color:var(--c-danger);font-weight:700"><i class="fa-solid fa-skull-crossbones"></i> Soglia SUPERATA di ${(oreTotMancate - totAnno*SOGLIA_PCT/100).toFixed(0)}h</span>`;
+    } else {
+        leftEl.innerHTML = `<span style="color:var(--c-ok);font-weight:700"><i class="fa-solid fa-shield-halved"></i> Margine: ancora ${oreRimaste.toFixed(0)}h prima del 25%</span>`;
+    }
+
+    // ── KPI Cards ────────────────────────────────────────
+    animateValue($('sum-assenze'), 0, nAssenze, 600);
+    animateValue($('sum-ritardi'), 0, nRitardi, 600);
+    animateValue($('sum-uscite'),  0, nUscite,  600);
+    animateValue($('sum-ok'),      0, nOk,      600);
+    $('sum-assenze-h').textContent = `${oreAssenze}h equiv.`;
+    $('sum-ritardi-h').textContent = `${oreRitardi}h equiv.`;
+    $('sum-uscite-h').textContent  = `${oreUscite}h equiv.`;
+    $('sum-ng-label').innerHTML    = nNg > 0
+        ? `<span style="color:var(--c-danger)">${nNg} da giustificare</span>`
+        : `<span style="color:var(--c-ok)">Tutte giustificate</span>`;
+
+    // ── Tabella ──────────────────────────────────────────
+    const giorniIT = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+
+    function renderAssenzeTable(list) {
+        const tbody = $('assenze-body');
+        tbody.style.opacity = '0';
+        tbody.style.transition = 'opacity .25s';
+        setTimeout(() => {
+            tbody.innerHTML = '';
+            if (!list.length) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--c-muted)">Nessun risultato.</td></tr>`;
+                tbody.style.opacity = '1';
+                return;
+            }
+            list.forEach(a => {
+                const cat   = classifyAssenza(a.tipo);
+                const ore   = calcOreAssenza(a.tipo, a.data);
+                const isOre = ore >= 6;
+                const stato = a.giustificata
+                    ? `<span class='badge badge-ok'><i class='fa-solid fa-check'></i> Giustificata</span>`
+                    : `<span class='badge badge-danger'><i class='fa-solid fa-xmark'></i> Da giustificare</span>`;
+
+                let tipoCls  = 'tipo-altro';
+                let tipoTxt  = a.tipo;
+                if (cat === 'assenza') tipoCls = 'tipo-assenza';
+                if (cat === 'ritardo') tipoCls = 'tipo-ritardo';
+                if (cat === 'uscita')  tipoCls = 'tipo-uscita';
+
+                const d = parseDateIT(a.data);
+                const giorno = !isNaN(d.getTime()) ? giorniIT[d.getDay()] : '—';
+
+                tbody.innerHTML += `
+                <tr data-cat="${cat}">
+                    <td style="font-weight:600">${a.data}</td>
+                    <td style="color:var(--c-muted);font-size:.85rem">${giorno}</td>
+                    <td><span class="badge ${tipoCls}">${tipoTxt}</span></td>
+                    <td><span class="ore-chip ${isOre ? 'full' : 'part'}"><i class="fa-regular fa-clock"></i>${ore}h</span></td>
+                    <td style="color:var(--c-muted);font-size:.88rem">${a.descrizione || '—'}</td>
+                    <td>${stato}</td>
+                </tr>`;
+            });
+            tbody.style.opacity = '1';
+        }, 250);
+    }
+
+    renderAssenzeTable(assenze);
+
+    // Filtro tipo
+    $('filter-tipo-assenze').addEventListener('change', e => {
+        const v = e.target.value;
+        if (v === 'all') return renderAssenzeTable(assenze);
+        renderAssenzeTable(assenze.filter(a => classifyAssenza(a.tipo) === v));
+    });
+}
+
 
 // ── NOTE ────────────────────────────────────────────
 function populateNote(note) {
@@ -590,8 +886,8 @@ function renderDashChart() {
 
     const ctx = $('dashChart').getContext('2d');
     const grad = ctx.createLinearGradient(0, 0, 0, 260);
-    grad.addColorStop(0, 'rgba(88,101,242,.35)');
-    grad.addColorStop(1, 'rgba(88,101,242,.0)');
+    grad.addColorStop(0, 'rgba(37,99,235,.35)');
+    grad.addColorStop(1, 'rgba(37,99,235,.0)');
 
     // Chip range filter
     let range = 'all';
@@ -606,9 +902,9 @@ function renderDashChart() {
                 labels,
                 datasets: [{
                     data: slice, fill: true,
-                    backgroundColor: grad, borderColor: '#5865f2',
+                    backgroundColor: grad, borderColor: '#2563eb',
                     borderWidth: 2.5, tension: .4, pointRadius: 4,
-                    pointBackgroundColor: '#fff', pointBorderColor: '#5865f2',
+                    pointBackgroundColor: '#fff', pointBorderColor: '#2563eb',
                     pointHoverRadius: 7
                 }]
             },
@@ -643,7 +939,7 @@ function renderSparkChart() {
         type: 'line',
         data: {
             labels: nums.map((_,i) => i),
-            datasets: [{ data: nums, borderColor:'rgba(88,101,242,.6)', borderWidth:2, pointRadius:0, tension:.4 }]
+            datasets: [{ data: nums, borderColor:'rgba(37,99,235,.6)', borderWidth:2, pointRadius:0, tension:.4 }]
         },
         options: { responsive:true, maintainAspectRatio:false, animation:false,
             plugins:{legend:{display:false}}, scales:{x:{display:false},y:{display:false}} }
@@ -655,7 +951,7 @@ function renderMedieChart() {
     const entries = Object.entries(map).sort((a,b) => a[0].localeCompare(b[0]));
     const labels  = entries.map(([k]) => truncate(k, 14));
     const medie   = entries.map(([,v]) => v.media.toFixed(2));
-    const colors  = entries.map(([,v]) => v.media >= 6 ? '#5865f2' : '#ef4444');
+    const colors  = entries.map(([,v]) => v.media >= 6 ? '#2563eb' : '#ef4444');
 
     const ctx = $('materieChart').getContext('2d');
     if (State.charts.medie) State.charts.medie.destroy();
@@ -688,8 +984,8 @@ function renderRadarChart() {
             labels,
             datasets: [{
                 data: medie, fill: true,
-                backgroundColor: 'rgba(88,101,242,.2)',
-                borderColor: '#5865f2', pointBackgroundColor: '#5865f2',
+                backgroundColor: 'rgba(37,99,235,.2)',
+                borderColor: '#2563eb', pointBackgroundColor: '#2563eb',
                 borderWidth: 2, pointRadius: 4
             }]
         },

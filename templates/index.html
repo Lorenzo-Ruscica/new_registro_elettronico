@@ -6,10 +6,14 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#0a0a0f">
     <title>EduTrack — Registro Elettronico</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&display=swap" rel="stylesheet">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/views.css') }}">
 </head>
 <body>
 
@@ -44,6 +48,11 @@
                     <input type="password" id="password" class="field-input" placeholder="••••••••" required autocomplete="current-password">
                     <button type="button" id="toggle-pwd" class="field-eye"><i class="fa-solid fa-eye"></i></button>
                 </div>
+            </div>
+            <div class="remember-row">
+                <label class="remember-label">
+                    <input type="checkbox" id="remember-me"> Ricorda accesso
+                </label>
             </div>
             <p class="login-error" id="login-error"></p>
             <button type="submit" class="btn-cta" id="login-btn">
@@ -107,16 +116,20 @@
         </div>
 
         <div class="sidebar-bottom">
-            <div class="sb-user">
+            <div class="user-block">
                 <div class="sb-avatar" id="sb-avatar-initial">S</div>
                 <div class="sb-user-info">
                     <strong id="user-display">Studente</strong>
-                    <small>Studente &bull; <span class="dot-online"></span> Online</small>
+                    <small><span class="dot-online"></span> <span class="sync-status-txt">Sincronizzato</span></small>
                 </div>
             </div>
-            <div class="sb-actions">
-                <button class="sb-icon-btn" id="theme-toggle" title="Cambia tema"><i class="fa-solid fa-circle-half-stroke"></i></button>
-                <button class="sb-icon-btn danger" id="logout-btn" title="Disconnetti"><i class="fa-solid fa-power-off"></i></button>
+            <div class="action-grid">
+                <button class="action-btn" id="theme-toggle" title="Cambia tema">
+                    <i class="fa-solid fa-moon"></i><span class="act-label">Tema</span>
+                </button>
+                <button class="action-btn danger" id="logout-btn" title="Disconnetti">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i><span class="act-label">Esci</span>
+                </button>
             </div>
         </div>
     </aside>
@@ -258,46 +271,99 @@
                 <div class="agenda-grid" id="agenda-container"></div>
             </section>
 
-            <!-- ══════════════════════ COMPITI (KANBAN) ══════════════════════ -->
+            <!-- ══════════════════════ COMPITI (TIMELINE) ══════════════════════ -->
             <section class="view" id="view-compiti">
                 <div class="view-toolbar">
-                    <span class="view-toolbar-info"><i class="fa-solid fa-circle-info"></i> Clicca un compito per segnarlo come completato</span>
-                    <button class="btn-pill danger-outline" id="clear-done"><i class="fa-solid fa-broom"></i> Svuota completati</button>
-                </div>
-                <div class="kanban" id="kanban-board">
-                    <div class="kanban-col">
-                        <div class="kanban-col-header">
-                            <h3><span class="col-dot dot-orange"></span>Da Completare</h3>
-                            <span class="col-count" id="count-todo">0</span>
-                        </div>
-                        <div class="kanban-cards" id="col-todo"></div>
-                    </div>
-                    <div class="kanban-col">
-                        <div class="kanban-col-header">
-                            <h3><span class="col-dot dot-green"></span>Completati</h3>
-                            <span class="col-count" id="count-done">0</span>
-                        </div>
-                        <div class="kanban-cards" id="col-done"></div>
-                    </div>
-                    <div class="kanban-col">
-                        <div class="kanban-col-header">
-                            <h3><span class="col-dot dot-blue"></span>Materiale Studio</h3>
-                        </div>
-                        <div class="kanban-cards" id="col-studio"></div>
+                    <span class="view-toolbar-info"><i class="fa-solid fa-circle-info"></i> Clicca la spunta per segnare come completato</span>
+                    <div class="btn-group">
+                        <button class="btn-pill active" id="filter-compiti-all">Tutto</button>
+                        <button class="btn-pill" id="filter-compiti-compiti"><i class="fa-solid fa-pen"></i> Compiti</button>
+                        <button class="btn-pill" id="filter-compiti-studio"><i class="fa-solid fa-book"></i> Studio</button>
                     </div>
                 </div>
+                <div class="timeline" id="compiti-timeline"></div>
             </section>
 
             <!-- ══════════════════════ ASSENZE ══════════════════════ -->
             <section class="view" id="view-assenze">
-                <div class="assenze-summary" id="assenze-summary">
-                    <div class="assum-card"><i class="fa-solid fa-calendar-xmark"></i><div><strong id="sum-tot">0</strong><small>Totali</small></div></div>
-                    <div class="assum-card ok"><i class="fa-solid fa-circle-check"></i><div><strong id="sum-ok">0</strong><small>Giustificate</small></div></div>
-                    <div class="assum-card alert"><i class="fa-solid fa-circle-exclamation"></i><div><strong id="sum-ng">0</strong><small>Da Giustificare</small></div></div>
+
+                <!-- Barra rischio bocciatura -->
+                <div class="absence-risk-card" id="absence-risk-card">
+                    <div class="arc-header">
+                        <div class="arc-title-group">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <div>
+                                <h3>Soglia Limite Assenze — 25%</h3>
+                                <p>Superare il 25% delle ore totali comporta la non ammissione all'anno successivo</p>
+                            </div>
+                        </div>
+                        <div class="arc-pct-badge" id="arc-pct-badge">0%</div>
+                    </div>
+                    <div class="arc-bar-track">
+                        <div class="arc-bar-fill" id="arc-bar-fill" style="width:0%"></div>
+                        <div class="arc-bar-threshold" title="Soglia 25%"></div>
+                    </div>
+                    <div class="arc-legend">
+                        <span id="arc-legend-hours">0 ore mancate</span>
+                        <span id="arc-legend-total">su 0 ore totali anno</span>
+                        <span id="arc-legend-left" style="margin-left:auto"></span>
+                    </div>
                 </div>
+
+                <!-- KPI Differenziati -->
+                <div class="assenze-kpi" id="assenze-kpi">
+                    <div class="akpi-card">
+                        <div class="akpi-icon"><i class="fa-solid fa-calendar-xmark"></i></div>
+                        <div class="akpi-data">
+                            <strong id="sum-assenze">0</strong>
+                            <span>Assenze intere</span>
+                        </div>
+                        <div class="akpi-sub" id="sum-assenze-h">0 ore</div>
+                    </div>
+                    <div class="akpi-card warn">
+                        <div class="akpi-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                        <div class="akpi-data">
+                            <strong id="sum-ritardi">0</strong>
+                            <span>Ritardi</span>
+                        </div>
+                        <div class="akpi-sub" id="sum-ritardi-h">0 ore</div>
+                    </div>
+                    <div class="akpi-card info">
+                        <div class="akpi-icon"><i class="fa-solid fa-right-from-bracket"></i></div>
+                        <div class="akpi-data">
+                            <strong id="sum-uscite">0</strong>
+                            <span>Uscite anticip.</span>
+                        </div>
+                        <div class="akpi-sub" id="sum-uscite-h">0 ore</div>
+                    </div>
+                    <div class="akpi-card ok">
+                        <div class="akpi-icon"><i class="fa-solid fa-circle-check"></i></div>
+                        <div class="akpi-data">
+                            <strong id="sum-ok">0</strong>
+                            <span>Giustificate</span>
+                        </div>
+                        <div class="akpi-sub" id="sum-ng-label"></div>
+                    </div>
+                </div>
+
+                <!-- Tabella -->
                 <div class="card card-table">
+                    <div class="card-header">
+                        <h3>Registro Dettagliato</h3>
+                        <div class="select-wrap">
+                            <i class="fa-solid fa-filter"></i>
+                            <select id="filter-tipo-assenze" class="styled-select">
+                                <option value="all">Tutti i tipi</option>
+                                <option value="assenza">Solo assenze</option>
+                                <option value="ritardo">Solo ritardi</option>
+                                <option value="uscita">Solo uscite</option>
+                            </select>
+                        </div>
+                    </div>
                     <table class="data-table">
-                        <thead><tr><th>Data</th><th>Tipo</th><th>Dettaglio</th><th>Stato</th></tr></thead>
+                        <thead><tr>
+                            <th>Data</th><th>Giorno</th><th>Tipo</th><th>Ore equiv.</th><th>Dettaglio</th><th>Stato</th>
+                        </tr></thead>
                         <tbody id="assenze-body"></tbody>
                     </table>
                 </div>

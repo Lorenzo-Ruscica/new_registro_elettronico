@@ -1,0 +1,132 @@
+/* ================================================================
+   EDUTRACK V5 — LAYOUT (App Shell, Topbar, Sidebar, Mobile Nav)
+================================================================ */
+.screen {
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  opacity: 0; visibility: hidden; transition: opacity .4s var(--ease-out), visibility .4s; z-index: 200;
+}
+.screen.is-active { opacity: 1; visibility: visible; }
+
+.app-shell { display: flex; flex-direction: row; background: var(--c-bg); position: fixed; inset: 0; }
+
+.sidebar {
+  width: var(--sidebar-w); background: var(--c-surface); border-right: 1px solid var(--c-border);
+  display: flex; flex-direction: column; flex-shrink: 0; height: 100dvh; z-index: 150;
+  transition: transform .35s var(--ease-out), background .3s;
+}
+
+.sidebar-top { flex: 1; padding: 24px 18px 16px; overflow-y: auto; }
+.sb-brand { display: flex; align-items: center; gap: 14px; margin-bottom: 32px; padding: 0 8px; }
+.sb-logo { width: 40px; height: 40px; border-radius: 12px; background: var(--c-primary-g); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; box-shadow: 0 8px 20px rgba(37,99,235,.3); }
+.sb-name { font-weight: 800; font-size: 1.25rem; letter-spacing: -.4px; }
+
+.sb-section-label { font-size: .75rem; font-weight: 700; color: var(--c-muted); text-transform: uppercase; letter-spacing: .8px; margin: 12px 10px 8px; display: block; }
+.sb-link {
+  display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-radius: var(--radius-m);
+  color: var(--c-muted); font-size: .95rem; font-weight: 600; transition: all var(--t); margin-bottom: 4px;
+}
+.sb-link i { width: 20px; text-align: center; font-size: 1.1rem; transition: color var(--t); }
+.sb-link:hover { background: var(--c-surface-2); color: var(--c-text); }
+.sb-link.is-active { background: var(--c-primary-l); color: var(--c-primary); }
+
+/* Improved User Block & Action Buttons (Sidebar Bottom) */
+.sidebar-bottom {
+  padding: 20px 18px; border-top: 1px solid var(--c-border);
+  display: flex; flex-direction: column; gap: 16px;
+  background: var(--c-bg); /* Slight contrast from sidebar surface */
+}
+.user-block { display: flex; align-items: center; gap: 14px; padding: 4px; }
+.sb-avatar {
+  width: 44px; height: 44px; border-radius: 14px; background: var(--c-primary-g);
+  color: #fff; font-weight: 800; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  box-shadow: 0 6px 14px rgba(37,99,235,.3);
+}
+.sb-user-info strong { display: block; font-size: 1rem; font-weight: 700; line-height: 1.2; margin-bottom: 3px; }
+.sb-user-info small { color: var(--c-muted); font-size: .78rem; display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.dot-online { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c-ok); box-shadow: 0 0 8px var(--c-ok); }
+
+.action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.action-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px; border-radius: var(--radius-m);
+  background: var(--c-surface-2); color: var(--c-muted);
+  font-size: .9rem; font-weight: 700; transition: all var(--t);
+  border: 1px solid var(--c-border);
+}
+.action-btn i { font-size: 1.05rem; }
+.action-btn:hover { background: var(--c-surface-3); color: var(--c-text); border-color: var(--c-border-2); transform: translateY(-2px); }
+.action-btn.danger:hover { background: var(--c-danger-l); color: var(--c-danger); border-color: var(--c-danger); }
+
+/* Main wrap & Topbar */
+.main-wrap { flex: 1; display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+.topbar {
+  height: var(--topbar-h); flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 32px; background: rgba(17,17,24,.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--c-border); gap: 16px; z-index: 100;
+}
+.tb-left { display: flex; align-items: center; gap: 16px; }
+.tb-menu-btn { display: none; width: 42px; height: 42px; border-radius: 12px; border: 1px solid var(--c-border); color: var(--c-muted); font-size: 1.1rem; align-items: center; justify-content: center; transition: all var(--t); }
+.tb-title { font-size: 1.1rem; font-weight: 800; letter-spacing: -.2px; }
+
+.tb-right { display: flex; align-items: center; gap: 16px; }
+.tb-search-wrap {
+  position: relative; display: flex; align-items: center; background: var(--c-surface-2);
+  border: 1px solid var(--c-border); border-radius: var(--radius-l); padding: 0 16px; gap: 10px;
+  transition: all var(--t); width: 300px;
+}
+.tb-search-wrap:focus-within { border-color: var(--c-primary); box-shadow: 0 0 0 4px var(--c-primary-l); background: var(--c-surface-3); width: 340px; }
+.tb-search-wrap i { color: var(--c-muted); font-size: .95rem; flex-shrink: 0; }
+.tb-search-wrap input { background: transparent; border: none; outline: none; color: var(--c-text); font-family: inherit; font-size: .95rem; width: 100%; padding: 12px 0; }
+.tb-clear-search { color: var(--c-muted); font-size: .9rem; cursor: pointer; }
+.tb-date { font-size: .88rem; font-weight: 600; color: var(--c-muted); white-space: nowrap; }
+
+.views-container { flex: 1; overflow-y: auto; overflow-x: hidden; position: relative; padding: 32px; display: flex; flex-direction: column; }
+.view { display: none; flex-direction: column; gap: 28px; }
+.view.is-active { display: flex; animation: fadeUp .45s var(--ease-out) both; }
+
+/* ─── BOTTOM NAV (NATIVE APP MOBILE UX) ─── */
+.bottom-nav {
+  display: none;
+  background: rgba(17, 17, 24, 0.85); /* Glass effect */
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding-bottom: var(--safe-bottom);
+  padding-top: 8px;
+  z-index: 180;
+  position: fixed; bottom: 0; left: 0; right: 0;
+  box-shadow: 0 -10px 30px rgba(0,0,0,0.3);
+}
+
+.bn-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 5px; padding: 6px 0 10px; color: var(--c-muted); font-size: .65rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .5px; transition: color var(--t);
+  -webkit-tap-highlight-color: transparent;
+}
+.bn-item i { font-size: 1.4rem; transition: transform var(--t), filter var(--t); }
+.bn-item.is-active { color: var(--c-text); }
+.bn-item.is-active i { transform: scale(1.15) translateY(-2px); color: var(--c-primary); filter: drop-shadow(0 4px 8px rgba(37,99,235,0.6)); }
+
+.sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); z-index: 140; }
+
+/* ─── RESPONSIVE / APP MOBILE OVERRIDES ─── */
+@media (max-width: 1100px) {
+  .tb-search-wrap { width: 220px; } .tb-search-wrap:focus-within { width: 260px; }
+}
+
+@media (max-width: 900px) {
+  /* Hide typical web Sidebar */
+  .sidebar { position: fixed; top: 0; left: 0; bottom: 0; transform: translateX(-100%); z-index: 150; box-shadow: 8px 0 40px rgba(0,0,0,.6); }
+  .sidebar.is-open { transform: translateX(0); }
+  .sidebar-overlay.is-open { display: block; }
+  
+  .tb-menu-btn { display: inline-flex; }
+  .bottom-nav { display: flex; } /* Show App Bottom Bar */
+  
+  .topbar { padding: 0 20px; border-bottom: none; background: transparent; backdrop-filter: none; padding-top: env(safe-area-inset-top, 12px); height: auto; margin-bottom: -15px;}
+  .views-container { padding: 20px 16px calc(var(--bottom-h) + var(--safe-bottom) + 30px); }
+  
+  .tb-search-wrap { display: none; /* Hide top search, maybe put inside views */ }
+  .tb-date { display: none; }
+  .tb-title { font-size: 1.25rem; }
+}
