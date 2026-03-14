@@ -336,6 +336,9 @@ function populateAll(data) {
     populateNote(data.note);
     if (data.orario) populateOrario(data.orario);
     if (data.corsi) populateCorsi(data.corsi);
+    
+    // Mostra l'AI assistant solo dopo il caricamento dati
+    $('ai-fab').classList.add('visible');
 }
 
 // ── DASHBOARD ──────────────────────────────────────
@@ -1393,4 +1396,100 @@ $('clear-search').addEventListener('click', () => {
     $('global-search').value = '';
     $('global-search').dispatchEvent(new Event('input'));
     $('clear-search').hidden = true;
+});
+
+// ────────────────────────────────────────────────────
+// AI ASSISTANT CHAT
+// ────────────────────────────────────────────────────
+const aiFab = $('ai-fab');
+const aiPanel = $('ai-chat-panel');
+const aiClose = $('ai-close-btn');
+const aiExpand = $('ai-expand-btn');
+const aiInput = $('ai-input');
+const aiSendBtn = $('ai-send-btn');
+const aiBody = $('ai-chat-body');
+
+aiFab.addEventListener('click', () => {
+    aiPanel.classList.add('active');
+    setTimeout(() => aiInput.focus(), 300);
+});
+
+aiClose.addEventListener('click', () => {
+    aiPanel.classList.remove('active');
+    aiPanel.classList.remove('fullscreen');
+    aiExpand.innerHTML = '<i class="fa-solid fa-expand"></i>';
+});
+
+aiExpand.addEventListener('click', () => {
+    aiPanel.classList.toggle('fullscreen');
+    if (aiPanel.classList.contains('fullscreen')) {
+        aiExpand.innerHTML = '<i class="fa-solid fa-compress"></i>';
+    } else {
+        aiExpand.innerHTML = '<i class="fa-solid fa-expand"></i>';
+    }
+});
+
+async function sendAiMessage() {
+    const text = aiInput.value.trim();
+    if (!text) return;
+    
+    // 1. Add User Message
+    addAiMessage(text, 'user');
+    aiInput.value = '';
+    
+    // 2. Add Loading Message
+    const loadId = 'ai-load-' + Date.now();
+    addAiMessage('<i class="fa-solid fa-circle-notch fa-spin"></i> Sto pensando...', 'bot', loadId);
+    aiBody.scrollTop = aiBody.scrollHeight;
+    
+    // 3. Prepare Context
+    // Per limitare i token (evitando errore 503), passiamo solo 5 elementi condensati
+    const context = {
+        nome: (State.data && State.data.utente) ? State.data.utente.name : 'Studente',
+        voti: (State.data && State.data.voti) ? State.data.voti.slice(0, 15).map(v => `${v.materia}:${v.voto}`).join(',') : '',
+        agenda: (State.data && State.data.agenda) ? State.data.agenda.slice(0, 5).map(a => `${a.data}:${a.titolo}`).join('|') : '',
+        argomenti: (State.data && State.data.argomenti) ? State.data.argomenti.slice(0, 5).map(a => `${a.data}:${a.materia}`).join('|') : '',
+        oggi: new Date().toLocaleDateString('it-IT')
+    };
+    
+    // 4. Send API Request
+    try {
+        const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: text, context: context })
+        });
+        const data = await res.json();
+        
+        // Remove loading
+        const loader = $(loadId);
+        if (loader) loader.remove();
+        
+        // Add response
+        // Parse simple markdown: **bold**
+        let reply = data.reply || "Nessuna risposta dal server.";
+        reply = reply.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+        reply = reply.replace(/\n/g, "<br>");
+        
+        addAiMessage(reply, 'bot');
+        
+    } catch (err) {
+        const loader = $(loadId);
+        if (loader) loader.remove();
+        addAiMessage("❌ Errore di connessione al server AI.", 'err');
+    }
+}
+
+function addAiMessage(htmlContent, type, id = null) {
+    const msg = document.createElement('div');
+    msg.className = `ai-msg ai-${type}`;
+    if (id) msg.id = id;
+    msg.innerHTML = `<div class="ai-msg-content">${htmlContent}</div>`;
+    aiBody.appendChild(msg);
+    aiBody.scrollTop = aiBody.scrollHeight;
+}
+
+aiSendBtn.addEventListener('click', sendAiMessage);
+aiInput.addEventListener('keypress', e => {
+    if (e.key === 'Enter') sendAiMessage();
 });
