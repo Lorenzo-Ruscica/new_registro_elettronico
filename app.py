@@ -42,14 +42,35 @@ def get_all_data():
     argomenti = api.get_argomenti_compiti()
     assenze = api.get_assenze()
     note = api.get_note()
+    orario = api.get_orario()
+    corsi = api.get_corsi()
     
     return jsonify({
+        "utente": api.data_session.get("user_info", {}),
         "voti": voti,
         "agenda": agenda,
         "argomenti": argomenti,
         "assenze": assenze,
-        "note": note
+        "note": note,
+        "orario": orario,
+        "corsi": corsi
     })
+
+@app.route("/api/corsi/toggle", methods=["POST"])
+def toggle_corso():
+    if 'user' not in session or 'password' not in session:
+        return jsonify({"error": "Non autorizzato"}), 401
+        
+    data = request.json
+    id_corso = data.get("id_corso")
+    action = data.get("action") # 'subscribe' or 'unsubscribe'
+    
+    api = MastercomAPI(session['user'], session['password'])
+    if not api.login():
+        return jsonify({"error": "Sessione scaduta"}), 401
+        
+    success = api.toggle_corso(id_corso, action)
+    return jsonify({"success": success})
 
 @app.route("/api/logout", methods=["POST"])
 def logout():

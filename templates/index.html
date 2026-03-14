@@ -30,8 +30,8 @@
         <div class="login-icon-wrap">
             <i class="fa-solid fa-graduation-cap"></i>
         </div>
-        <h1 class="login-title">EduTrack</h1>
-        <p class="login-sub">Registro elettronico scolastico personale</p>
+        <h2 class="login-title">EduTrack <span class="badge badge-primary" style="font-size: 0.8rem; vertical-align: middle; margin-left: 8px;">Alpha</span></h2>
+        <p class="login-sub">Il tuo registro elettronico personale</p>
 
         <form id="login-form" autocomplete="off">
             <div class="field-group">
@@ -102,15 +102,25 @@
                 <a href="#" class="sb-link" data-view="agenda">
                     <i class="fa-regular fa-calendar-days"></i><span>Agenda</span>
                 </a>
+                <a href="#" class="sb-link" data-view="orario">
+                    <i class="fa-solid fa-clock"></i><span>Orario</span>
+                </a>
                 <a href="#" class="sb-link" data-view="compiti">
-                    <i class="fa-solid fa-list-check"></i><span>Compiti</span>
+                    <i class="fa-solid fa-list-check"></i><span>Argomenti Compiti</span>
                 </a>
                 <span class="sb-section-label" style="margin-top:10px">Registro</span>
                 <a href="#" class="sb-link" data-view="assenze">
                     <i class="fa-solid fa-user-xmark"></i><span>Assenze</span>
                 </a>
+                <a href="#" class="sb-link" data-view="corsi">
+                    <i class="fa-solid fa-chalkboard-user"></i><span>Corsi</span>
+                </a>
                 <a href="#" class="sb-link" data-view="note">
                     <i class="fa-solid fa-triangle-exclamation"></i><span>Note</span>
+                </a>
+                <span class="sb-section-label" style="margin-top:10px">Sistema</span>
+                <a href="#" class="sb-link" data-view="changelog">
+                    <i class="fa-solid fa-clipboard-list"></i><span>Changelog</span>
                 </a>
             </nav>
         </div>
@@ -127,8 +137,8 @@
                 <button class="action-btn" id="theme-toggle" title="Cambia tema">
                     <i class="fa-solid fa-moon"></i><span class="act-label">Tema</span>
                 </button>
-                <button class="action-btn danger" id="logout-btn" title="Disconnetti">
-                    <i class="fa-solid fa-arrow-right-from-bracket"></i><span class="act-label">Esci</span>
+                <button class="action-btn" id="app-logout-btn" title="Disconnetti">
+                    <i class="fa-solid fa-sign-out-alt"></i><span class="act-label">Esci</span>
                 </button>
             </div>
         </div>
@@ -168,13 +178,6 @@
                         </div>
                         <div class="kpi-sparkline"><canvas id="sparkMedia"></canvas></div>
                     </div>
-                    <div class="kpi-card accent-warn">
-                        <div class="kpi-icon"><i class="fa-solid fa-pen-to-square"></i></div>
-                        <div>
-                            <div class="kpi-val" id="dash-compiti">—</div>
-                            <div class="kpi-label">Compiti Assegnati</div>
-                        </div>
-                    </div>
                     <div class="kpi-card accent-danger">
                         <div class="kpi-icon"><i class="fa-solid fa-user-xmark"></i></div>
                         <div>
@@ -182,6 +185,13 @@
                             <div class="kpi-label">Assenze Totali</div>
                         </div>
                         <div class="kpi-sub" id="dash-giustifiche">—</div>
+                    </div>
+                    <div class="kpi-card accent-danger">
+                        <div class="kpi-icon"><i class="fa-solid fa-arrow-trend-down"></i></div>
+                        <div>
+                            <div class="kpi-val" id="dash-negativi">—</div>
+                            <div class="kpi-label">Voti Negativi</div>
+                        </div>
                     </div>
                     <div class="kpi-card accent-ok">
                         <div class="kpi-icon"><i class="fa-solid fa-chart-line"></i></div>
@@ -198,9 +208,9 @@
                         <div class="card-header">
                             <h3>Andamento Voti</h3>
                             <div class="chip-row">
-                                <button class="chip active" data-range="all">Tutto</button>
-                                <button class="chip" data-range="10">Ultimi 10</button>
-                                <button class="chip" data-range="5">Ultimi 5</button>
+                                <button class="chip active" data-range="all">Tutto l'anno</button>
+                                <button class="chip" data-range="q1">1° Periodo (Set-Gen)</button>
+                                <button class="chip" data-range="q2">2° Periodo (Feb-Giu)</button>
                             </div>
                         </div>
                         <div class="chart-wrap"><canvas id="dashChart"></canvas></div>
@@ -271,10 +281,32 @@
                 <div class="agenda-grid" id="agenda-container"></div>
             </section>
 
+            <!-- ══════════════════════ ORARIO ══════════════════════ -->
+            <section class="view" id="view-orario">
+                <div class="view-toolbar">
+                    <div class="select-wrap">
+                        <i class="fa-solid fa-calendar-day"></i>
+                        <select id="filter-giorno-orario" class="styled-select">
+                            <option value="all">Tutta la settimana</option>
+                            <option value="Lunedì">Lunedì</option>
+                            <option value="Martedì">Martedì</option>
+                            <option value="Mercoledì">Mercoledì</option>
+                            <option value="Giovedì">Giovedì</option>
+                            <option value="Venerdì">Venerdì</option>
+                            <option value="Sabato">Sabato</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="orario-grid" id="orario-container"></div>
+            </section>
+
             <!-- ══════════════════════ COMPITI (TIMELINE) ══════════════════════ -->
             <section class="view" id="view-compiti">
                 <div class="view-toolbar">
-                    <span class="view-toolbar-info"><i class="fa-solid fa-circle-info"></i> Clicca la spunta per segnare come completato</span>
+                    <div class="select-wrap" style="flex:1; min-width: 150px; max-width: 250px;">
+                        <i class="fa-solid fa-book-open"></i>
+                        <select id="filter-materia-compiti" class="styled-select" style="width: 100%;"><option value="all">Tutte le materie</option></select>
+                    </div>
                     <div class="btn-group">
                         <button class="btn-pill active" id="filter-compiti-all">Tutto</button>
                         <button class="btn-pill" id="filter-compiti-compiti"><i class="fa-solid fa-pen"></i> Compiti</button>
@@ -369,9 +401,77 @@
                 </div>
             </section>
 
+            <!-- ══════════════════════ CORSI ══════════════════════ -->
+            <section class="view" id="view-corsi">
+                <div class="view-toolbar">
+                    <div class="select-wrap">
+                        <i class="fa-solid fa-filter"></i>
+                        <select id="filter-corsi-stato" class="styled-select">
+                            <option value="all">Tutti i corsi</option>
+                            <option value="iscritti">Solo iscritti</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="corsi-grid" id="corsi-container"></div>
+            </section>
+
             <!-- ══════════════════════ NOTE ══════════════════════ -->
             <section class="view" id="view-note">
                 <div class="note-grid" id="note-body"></div>
+            </section>
+
+            <!-- ══════════════════════ CHANGELOG ══════════════════════ -->
+            <section class="view" id="view-changelog">
+                <div class="card" style="padding: 32px;">
+                    <h2 style="margin-bottom: 24px;">Cronologia Aggiornamenti</h2>
+                    
+                    <div style="margin-bottom: 32px; border-left: 3px solid var(--c-primary); padding-left: 20px;">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                            <h3 style="font-size: 1.3rem;">v0.3.0 (Alpha)</h3>
+                            <span class="badge badge-primary">Ultima release</span>
+                        </div>
+                        <p style="color: var(--c-muted); margin-bottom: 12px; font-weight: 600;">Interfaccia Native App e Fix CSS</p>
+                        <ul style="color: var(--c-text); font-size: 0.95rem; line-height: 1.6; list-style-type: disc; padding-left: 18px;">
+                            <li>Riprogettata intera interfaccia mobile per sembrare un'app nativa con Bottom Navigation bar in vetro (glassmorphism).</li>
+                            <li>Diviso il massiccio file style.css (~2000 righe) in file CSS modulari e più facilmente gestibili (base, layout, components, views).</li>
+                            <li>Aggiornati font e ridimensionati pulsanti per miglior supporto al touch.</li>
+                            <li>Risolti problemi di calcolo matematico sulle percentuali del tracker delle assenze.</li>
+                            <li>Introdotto il check dell'orario leggendolo dalle descrizioni su ore di ritardo e uscita.</li>
+                            <li>Aggiunta etichetta "Alpha" al caricamento nell'interfaccia di Login.</li>
+                            <li>Rinominate diciture da "Assegnazione" a "Compito" nell'agenda e in timeline.</li>
+                            <li>Aggiunta la pagina Changelog per tracciare il diario di sviluppo.</li>
+                        </ul>
+                    </div>
+
+                    <div style="margin-bottom: 32px; border-left: 3px solid var(--c-surface-3); padding-left: 20px;">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                            <h3 style="font-size: 1.3rem;">v0.2.0</h3>
+                        </div>
+                        <p style="color: var(--c-muted); margin-bottom: 12px; font-weight: 600;">Nuovo Calcolatore Assenze e Timeline</p>
+                        <ul style="color: var(--c-text); font-size: 0.95rem; line-height: 1.6; list-style-type: disc; padding-left: 18px;">
+                            <li>Creata un'interfaccia a schede interattive (KPI) per Assenze, Ritardi, Uscite e Giustifiche.</li>
+                            <li>Aggiunto un calcolatore intelligente di ore assenza (6h giorni standard, 8h al Giovedì).</li>
+                            <li>Inserita la Progress Bar che traccia il raggiungimento della soglia bocciatura (25%).</li>
+                            <li>Convertita la visualizzazione "Lavagna Kanban" dei compiti in una magnifica Timeline interattiva ordinata per giorno.</li>
+                            <li>Persistenza lato client: introdotto il sistema per flaggare un compito come completato salvandolo in memoria cache del dispositivo.</li>
+                            <li>Aggiunte scorciatoie per filtrare tra tipi di compito assegnati (Studio vs Esercizi scritti).</li>
+                        </ul>
+                    </div>
+
+                    <div style="border-left: 3px solid var(--c-surface-3); padding-left: 20px;">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                            <h3 style="font-size: 1.3rem;">v0.1.0</h3>
+                        </div>
+                        <p style="color: var(--c-muted); margin-bottom: 12px; font-weight: 600;">Primo Rilascio Base</p>
+                        <ul style="color: var(--c-text); font-size: 0.95rem; line-height: 1.6; list-style-type: disc; padding-left: 18px;">
+                            <li>Integrazione principale con backend Mastercom via web scraping Python.</li>
+                            <li>Struttura dati: Voti, Agenda, Compiti, Note e Assenze.</li>
+                            <li>Introdotte le macro-sezioni base e la logica di login col portale API.</li>
+                            <li>Implementato il salvataggio automatico delle API Key nella local session così che l'app le ricordi a ogni avvio.</li>
+                            <li>Integrazione Chart.js per monitoraggio progressi e Medie Materie.</li>
+                        </ul>
+                    </div>
+                </div>
             </section>
 
         </div><!-- /views-container -->
@@ -382,8 +482,11 @@
         <a href="#" class="bn-item is-active" data-view="dashboard"><i class="fa-solid fa-chart-pie"></i><span>Home</span></a>
         <a href="#" class="bn-item" data-view="voti"><i class="fa-solid fa-star-half-stroke"></i><span>Voti</span></a>
         <a href="#" class="bn-item" data-view="agenda"><i class="fa-regular fa-calendar-days"></i><span>Agenda</span></a>
-        <a href="#" class="bn-item" data-view="compiti"><i class="fa-solid fa-list-check"></i><span>Compiti</span></a>
+        <a href="#" class="bn-item" data-view="orario"><i class="fa-solid fa-clock"></i><span>Orario</span></a>
+        <a href="#" class="bn-item" data-view="compiti"><i class="fa-solid fa-list-check"></i><span>Argom. Compiti</span></a>
         <a href="#" class="bn-item" data-view="assenze"><i class="fa-solid fa-user-xmark"></i><span>Assenze</span></a>
+        <a href="#" class="bn-item" data-view="corsi"><i class="fa-solid fa-chalkboard-user"></i><span>Corsi</span></a>
+        <a href="#" class="bn-item" data-view="changelog"><i class="fa-solid fa-clipboard-list"></i><span>Log</span></a>
     </nav>
 
 </div><!-- /app-screen -->

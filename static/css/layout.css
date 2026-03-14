@@ -45,15 +45,15 @@
 .sb-user-info small { color: var(--c-muted); font-size: .78rem; display: flex; align-items: center; gap: 6px; font-weight: 600; }
 .dot-online { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c-ok); box-shadow: 0 0 8px var(--c-ok); }
 
-.action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.action-grid { display: flex; align-items: stretch; gap: 10px; width: 100%; }
 .action-btn {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 12px; border-radius: var(--radius-m);
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 10px; border-radius: var(--radius-m);
   background: var(--c-surface-2); color: var(--c-muted);
   font-size: .9rem; font-weight: 700; transition: all var(--t);
-  border: 1px solid var(--c-border);
+  border: 1px solid var(--c-border); line-height: 1; height: 42px;
 }
-.action-btn i { font-size: 1.05rem; }
+.action-btn i { font-size: 1.05rem; display: flex; align-items: center; }
 .action-btn:hover { background: var(--c-surface-3); color: var(--c-text); border-color: var(--c-border-2); transform: translateY(-2px); }
 .action-btn.danger:hover { background: var(--c-danger-l); color: var(--c-danger); border-color: var(--c-danger); }
 

@@ -1,5 +1,7 @@
 import requests
 import time
+import re
+import json
 from bs4 import BeautifulSoup
 
 # --- CLASSE MOTORE ---
@@ -32,6 +34,24 @@ class MastercomAPI:
                 "current_user": soup.find('input', {'id': 'current_user'})['value'],
                 "db_key": soup.find('input', {'id': 'db_key'})['value']
             }
+            
+            user_info = {"name": "Studente", "foto": None}
+            try:
+                strong_tag = soup.find('strong', class_='text-mastercom-dark-blue')
+                if strong_tag:
+                    name_txt = strong_tag.text.strip()
+                    if name_txt.lower().startswith("ciao "):
+                        name_txt = name_txt[5:].strip()
+                    user_info["name"] = name_txt
+                    
+                img_tag = soup.find('img', src=re.compile(r'foto_studenti'))
+                if img_tag and 'src' in img_tag.attrs:
+                    user_info["foto"] = "https://agnelli-to.registroelettronico.com/mastercom/" + img_tag['src']
+            except Exception:
+                pass
+                
+            self.data_session["user_info"] = user_info
+            
             return True
         except (TypeError, KeyError):
             return False
@@ -62,8 +82,22 @@ class MastercomAPI:
         for riga in righe:
             materia = riga.find('div', class_='bold').text.strip()
             voto = riga.find('strong').text.strip()
-            data = riga.find_all('div')[2].get_text(strip=True).split(' ')[0]
-            risultati.append({"materia": materia, "voto": voto, "data": data})
+            testo_div = riga.find_all('div')[2].text.strip()
+            
+            # Utilizziamo una regex per separare sempre i primi 10 caratteri della data (DD/MM/YYYY) dal tipo adiacente
+            import re
+            m = re.match(r"(\d{2}/\d{2}/\d{4})\s*(.*)", testo_div)
+            if m:
+                data = m.group(1)
+                tipo = m.group(2) if m.group(2) else "—"
+            else:
+                data = testo_div[:10]  # Fallback
+                tipo = testo_div[10:] if len(testo_div) > 10 else "—"
+            
+            # Controllo flag: "Il voto non fa media" o similare
+            peso_zero = "Il voto non fa media" in riga.text
+            
+            risultati.append({"materia": materia, "voto": voto, "data": data, "tipo": tipo, "peso_zero": peso_zero})
         
         return risultati
 
@@ -260,6 +294,124 @@ class MastercomAPI:
                 note.append({"contenuto": testo})
         return note
 
+    def get_orario(self):
+        if not self.data_session: return []
+
+        payload = {
+            "form_stato": "studente",
+            "stato_principale": "orario",
+            "stato_secondario": "",
+            "permission": "nexus",
+            "operazione": "",
+            "current_user": self.data_session["current_user"],
+            "current_key": self.data_session["current_key"],
+            "from_app": "1",
+            "webview": "1",
+            "header": "SI",
+            "db_key": self.data_session.get("db_key", "")
+        }
+
+        res = self.session.post(self.url, data=payload)
+        
+        m = re.search(r"var\s+riepilogo_orario\s*=\s*JSON\.parse\('([^']+)'\)", res.text)
+        if not m:
+            return []
+            
+        try:
+            # We replace \\/ with \/ etc, JSON loader handles standard escape sequences
+            orario_str = m.group(1).encode().decode('unicode_escape')
+            data = json.loads(orario_str)
+            return data.get('elenco_ore_totale', [])
+        except Exception as e:
+            print("Errore nel parsing JSON orario:", e)
+            return []
+
+    def get_corsi(self):
+        if not self.data_session: return []
+
+        payload = {
+            "form_stato": "studente",
+            "stato_principale": "corsi",
+            "stato_secondario": "",
+            "permission": "nexus",
+            "operazione": "",
+            "current_user": self.data_session["current_user"],
+            "current_key": self.data_session["current_key"],
+            "from_app": "1",
+            "webview": "1",
+            "header": "SI",
+            "db_key": self.data_session.get("db_key", "")
+        }
+
+        res = self.session.post(self.url, data=payload)
+        soup = BeautifulSoup(res.text, 'html.parser')
+        
+        corsi = []
+        rows = soup.select('table.table.striped tr')
+        for row in rows:
+            tds = row.find_all('td')
+            if len(tds) < 2: continue
+            
+            titolo_el = tds[0].find('strong')
+            if not titolo_el: continue
+            titolo = titolo_el.get_text(strip=True)
+            
+            prof_el = tds[0].find('div', class_='italic small')
+            professore = prof_el.get_text(separator=" ", strip=True) if prof_el else ""
+            
+            btn = tds[0].find('button', onclick=re.compile(r'toggleInfo'))
+            id_corso = ""
+            if btn:
+                m = re.search(r"toggleInfo\([^,]+,\s*'(\d+)'\)", btn['onclick'])
+                if m: id_corso = m.group(1)
+                
+            dettagli = ""
+            if id_corso:
+                dettagli_div = soup.find('div', id=id_corso)
+                if dettagli_div:
+                    # Clean the detailed text removing "Orario lezioni:" etc.
+                    dettagli = dettagli_div.get_text(separator="\n", strip=True)
+            
+            date_div = tds[1].find('div')
+            date_testo = date_div.get_text(separator=" - ", strip=True) if date_div else ""
+            
+            iscritto = False
+            iscrizione_div = tds[1].find('div', id=f"div_iscrizione_{id_corso}")
+            if iscrizione_div:
+                testo_iscr = iscrizione_div.get_text(strip=True)
+                if "Non iscritto" not in testo_iscr and "Iscritto" in testo_iscr:
+                    iscritto = True
+                    
+            corsi.append({
+                "id": id_corso,
+                "titolo": titolo,
+                "professore": professore,
+                "dettagli": dettagli,
+                "periodo": date_testo,
+                "iscritto": iscritto
+            })
+            
+        return corsi
+
+    def toggle_corso(self, id_corso, action="subscribe"):
+        if not self.data_session: return False
+        
+        payload = {
+            "form_stato": "studente",
+            "stato_principale": "corsi",
+            "stato_secondario": "",
+            "permission": "nexus",
+            "operazione": action, # We assume 'subscribe' or 'unsubscribe' is passed to 'operazione'
+            "id_corso": id_corso, # Best guess parameter name
+            "current_user": self.data_session["current_user"],
+            "current_key": self.data_session["current_key"],
+            "db_key": self.data_session.get("db_key", "")
+        }
+        res = self.session.post(self.url, data=payload)
+        return True # Assuming succes for now
+
+
+
 # --- ESECUZIONE E STAMPA TERMINALE ---
 if __name__ == "__main__":
     registro = MastercomAPI("616709", "tzncx6y7sm")
@@ -309,6 +461,25 @@ if __name__ == "__main__":
             print("Nessuna nota trovata. Ottimo lavoro!")
         for n in note:
             print(f"-> {n['contenuto']}")
+            
+        print("\n" + "="*60)
+        print("🕒 ORARIO")
+        print("="*60)
+        orario = registro.get_orario()
+        if not orario:
+            print("Nessun orario trovato.")
+        for o in orario[:10]: # Print first 10
+            print(f"[{o.get('giorno_tradotto', '')} {o.get('data_inizio_tradotta', '')}] {o.get('ora_inizio_tradotta', '')} - {o.get('ora_fine_tradotta', '')} | {o.get('descrizione_materia', '')} ({o.get('cognome_professore', '')})")
+            
+        print("\n" + "="*60)
+        print("🏫 CORSI")
+        print("="*60)
+        corsi = registro.get_corsi()
+        if not corsi:
+            print("Nessun corso trovato.")
+        for c in corsi[:10]: # Print first 10
+            iscr = "✅ ISCRITTO" if c['iscritto'] else "❌ NON ISCRITTO"
+            print(f"[{c['periodo']}] {c['titolo']} | {c['professore']} | {iscr}")
             
     else:
         print("❌ Login fallito.")

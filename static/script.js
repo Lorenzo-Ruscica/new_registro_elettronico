@@ -36,9 +36,11 @@ function parseVoto(str) {
 }
 
 function votoClass(n) {
-    if (n === null) return 'warn';
-    if (n >= 7.5) return 'ok';
-    if (n >= 6)   return 'warn';
+    if (n === null) return 'muted';
+    if (n >= 8.5)   return 'excel';
+    if (n >= 7.0)   return 'good';
+    if (n >= 6.0)   return 'ok';
+    if (n >= 5.0)   return 'warn';
     return 'danger';
 }
 
@@ -48,7 +50,11 @@ function truncate(str, n = 50) {
 
 function formatDate(str) {
     if (!str) return '—';
-    try { return new Date(str).toLocaleDateString('it-IT', {day:'2-digit',month:'short'}); } catch { return str; }
+    try { 
+        return parseDateIT(str).toLocaleDateString('it-IT', {day:'2-digit',month:'short'}); 
+    } catch { 
+        return str; 
+    }
 }
 
 function animateValue(el, start, end, duration = 800) {
@@ -112,6 +118,7 @@ const pageTitles = {
     compiti:   'Compiti & Studio',
     assenze:   'Registro Assenze',
     note:      'Note Disciplinari',
+    changelog: 'Diario Aggiornamenti',
 };
 
 function navigateTo(view) {
@@ -163,7 +170,7 @@ overlay.addEventListener('click', closeMobileSidebar);
 // ────────────────────────────────────────────────────
 // LOGOUT
 // ────────────────────────────────────────────────────
-$('logout-btn').addEventListener('click', () => {
+$('app-logout-btn').addEventListener('click', () => {
     $('app-screen').style.opacity = '0';
     $('app-screen').style.transition = 'opacity .4s';
     setTimeout(() => fetch('/api/logout', { method:'POST' }).then(() => location.reload()), 350);
@@ -187,14 +194,19 @@ $('toggle-pwd').addEventListener('click', () => {
 });
 
 // ────────────────────────────────────────────────────
-// REMEMBER-ME: Precompila i campi al caricamento
+// REMEMBER-ME: Precompila i campi al caricamento e auto-login
 // ────────────────────────────────────────────────────
 (function loadSavedCredentials() {
     const saved = JSON.parse(localStorage.getItem('edu-creds') || 'null');
-    if (saved) {
-        $('username').value = saved.u || '';
-        $('password').value = saved.p || '';
+    if (saved && saved.u && saved.p) {
+        $('username').value = saved.u;
+        $('password').value = saved.p;
         $('remember-me').checked = true;
+        
+        // Auto submit if credentials exist
+        setTimeout(() => {
+            if ($('login-btn')) $('login-btn').click();
+        }, 100);
     }
 })();
 
@@ -304,27 +316,42 @@ async function runSync() {
 // POPULATE ALL DATA
 // ────────────────────────────────────────────────────
 function populateAll(data) {
+    if (data.utente) {
+        if (data.utente.name) {
+            $('user-display').textContent = data.utente.name;
+            const init = data.utente.name.charAt(0).toUpperCase();
+            $('sb-avatar-initial').textContent = init;
+        }
+        if (data.utente.foto) {
+            $('sb-avatar-initial').style.background = 'transparent';
+            $('sb-avatar-initial').innerHTML = `<img src="${data.utente.foto}" alt="Profilo" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+        }
+    }
+
     populateDashboard(data);
     populateVoti(data.voti);
     populateAgenda(data.agenda);
     populateCompiti(data.argomenti);
     populateAssenze(data.assenze);
     populateNote(data.note);
+    if (data.orario) populateOrario(data.orario);
+    if (data.corsi) populateCorsi(data.corsi);
 }
 
 // ── DASHBOARD ──────────────────────────────────────
 function populateDashboard(data) {
-    const votiNums = data.voti.map(v => parseVoto(v.voto)).filter(n => n !== null);
+    const votiValidi = data.voti.filter(v => parseVoto(v.voto) !== null && !v.peso_zero);
+    const votiNums   = votiValidi.map(v => parseVoto(v.voto));
     const media    = votiNums.length ? (votiNums.reduce((a,b) => a+b,0) / votiNums.length) : 0;
     const positivi = votiNums.filter(n => n >= 6).length;
-    const compiti  = data.argomenti.filter(a => /asseg|compit/i.test(a.tipo)).length;
+    const negativi = votiNums.filter(n => n < 6).length;
     const assenze  = data.assenze.length;
     const dagiust  = data.assenze.filter(a => !a.giustificata).length;
 
     // KPI counters with animation
     const mediaEl = $('dash-media');
     animateValue(mediaEl, 0, media, 900);
-    animateValue($('dash-compiti'), 0, compiti, 700);
+    animateValue($('dash-negativi'), 0, negativi, 700);
     animateValue($('dash-assenze'), 0, assenze, 700);
     animateValue($('dash-positivi'), 0, positivi, 700);
 
@@ -371,7 +398,7 @@ function populateDashboard(data) {
         <div class="sb-row">
             <span class="sb-materia" title="${mat}">${truncate(mat, 18)}</span>
             <div class="sb-track"><div class="sb-fill ${fillCls}" style="width:0%" data-w="${(m/10)*100}%"></div></div>
-            <span class="sb-valore">${m.toFixed(1)}</span>
+            <span class="sb-valore">${m.toFixed(2)}</span>
         </div>`;
     });
     // Animate bars after paint
@@ -405,10 +432,15 @@ function renderVotiTable(voti) {
         const esito = n === null ? '<span class="badge badge-muted">N/D</span>'
             : n >= 6 ? '<span class="badge badge-ok">Positivo</span>'
             : '<span class="badge badge-danger">Insufficiente</span>';
+            
+        const nomeMateria = v.peso_zero 
+            ? `${v.materia} <span class="badge badge-warn" style="margin-left:8px; font-size:0.6rem;">Non fa media</span>` 
+            : v.materia;
+            
         tbody.innerHTML += `
         <tr data-materia="${v.materia}">
             <td style="color:var(--c-muted);font-size:.82rem">${v.data}</td>
-            <td style="font-weight:600">${v.materia}</td>
+            <td style="font-weight:600">${nomeMateria}</td>
             <td><div class="voto-chip ${cls}">${v.voto}</div></td>
             <td><span class="badge badge-muted">${v.tipo || '—'}</span></td>
             <td>${esito}</td>
@@ -483,11 +515,12 @@ function renderAgenda(agenda, filter) {
             const isC   = /compit|asseg/i.test(a.tipo);
             const badge = isV ? 'badge-danger' : isC ? 'badge-warn' : 'badge-primary';
             const cls   = isV ? 'ag-verifica' : isC ? 'ag-compito' : 'ag-evento';
+            const tipoLabel = (a.tipo || '').toLowerCase() === 'assegnazione' ? 'Compito' : a.tipo;
             grid.innerHTML += `
             <div class="ag-card ${cls}" style="${isPast ? 'opacity:.6' : ''}">
                 <div class="ag-top">
                     <span class="ag-date"><i class='fa-regular fa-clock' style='margin-right:5px'></i>${a.orario || '—'}</span>
-                    <span class="badge ${badge}">${a.tipo}</span>
+                    <span class="badge ${badge}">${tipoLabel}</span>
                 </div>
                 <div class="ag-title">${a.titolo}</div>
                 <div class="ag-docente"><i class='fa-solid fa-chalkboard-user'></i>${a.docente || 'ND'}</div>
@@ -511,30 +544,46 @@ let _allArgomenti = [];
 
 function populateCompiti(argomenti) {
     _allArgomenti = argomenti;
-    renderTimeline(argomenti, 'all');
+    renderTimeline(argomenti, 'all', 'all');
 
-    // Filter buttons
+    // Filter elements
+    const selMateria = $('filter-materia-compiti');
     const btnAll     = $('filter-compiti-all');
     const btnCompiti = $('filter-compiti-compiti');
     const btnStudio  = $('filter-compiti-studio');
+
+    let currType = 'all';
+    let currMat  = 'all';
+
+    // Populate materia dropdown
+    selMateria.innerHTML = '<option value="all">Tutte le materie</option>';
+    [...new Set(argomenti.map(a => a.materia))].sort().forEach(m => {
+        selMateria.innerHTML += `<option value="${m}">${truncate(m, 22)}</option>`;
+    });
+
+    selMateria.addEventListener('change', e => {
+        currMat = e.target.value;
+        renderTimeline(_allArgomenti, currType, currMat);
+    });
 
     function setActive(active) {
         [btnAll, btnCompiti, btnStudio].forEach(b => b.classList.remove('active'));
         active.classList.add('active');
     }
-    btnAll.addEventListener('click',     () => { setActive(btnAll);     renderTimeline(_allArgomenti, 'all'); });
-    btnCompiti.addEventListener('click', () => { setActive(btnCompiti); renderTimeline(_allArgomenti, 'compiti'); });
-    btnStudio.addEventListener('click',  () => { setActive(btnStudio);  renderTimeline(_allArgomenti, 'studio'); });
+    btnAll.addEventListener('click',     () => { currType = 'all';     setActive(btnAll);     renderTimeline(_allArgomenti, currType, currMat); });
+    btnCompiti.addEventListener('click', () => { currType = 'compiti'; setActive(btnCompiti); renderTimeline(_allArgomenti, currType, currMat); });
+    btnStudio.addEventListener('click',  () => { currType = 'studio';  setActive(btnStudio);  renderTimeline(_allArgomenti, currType, currMat); });
 }
 
-function renderTimeline(argomenti, filter) {
+function renderTimeline(argomenti, filterType, filterMateria = 'all') {
     const tl = $('compiti-timeline');
     tl.innerHTML = '';
 
     // Filtra
     let items = argomenti;
-    if (filter === 'compiti') items = argomenti.filter(a =>  /asseg|compit/i.test(a.tipo));
-    if (filter === 'studio')  items = argomenti.filter(a => !/asseg|compit/i.test(a.tipo));
+    if (filterType === 'compiti') items = items.filter(a =>  /asseg|compit/i.test(a.tipo));
+    if (filterType === 'studio')  items = items.filter(a => !/asseg|compit/i.test(a.tipo));
+    if (filterMateria !== 'all')  items = items.filter(a => a.materia === filterMateria);
 
     if (!items.length) {
         tl.innerHTML = `<p style="color:var(--c-muted);padding:20px">Nessun elemento trovato.</p>`;
@@ -585,6 +634,7 @@ function renderTimeline(argomenti, filter) {
             const accentCls = isCompito ? 'compito' : 'studio';
             const cardKey   = `${day}_${c.materia}_${idx}`;
             const isDone    = doneSet.has(cardKey);
+            const tipoLabel = (c.tipo || '').toLowerCase() === 'assegnazione' ? 'Compito' : c.tipo;
 
             const card = document.createElement('div');
             card.className = `tl-card${isDone ? ' done' : ''}${!isCompito ? ' studio' : ''}` ;
@@ -592,9 +642,8 @@ function renderTimeline(argomenti, filter) {
             card.innerHTML = `
             <div class="tl-card-accent ${accentCls}"></div>
             <div class="tl-card-body">
-                <span class="tl-card-meta">${c.materia} · <span class="badge ${isCompito ? 'badge-warn' : 'badge-ok'}">${c.tipo}</span></span>
-                <div class="tl-card-main">${c.tipo}</div>
-                <div class="tl-card-desc">${truncate(c.contenuto, 120)}</div>
+                <span class="tl-card-meta">${c.materia} · <span class="badge ${isCompito ? 'badge-warn' : 'badge-ok'}">${tipoLabel}</span></span>
+                <div class="tl-card-desc">${c.contenuto}</div>
             </div>
             ${isCompito ? `<button class="tl-check-btn" title="Segna completato"><i class="fa-${isDone ? 'solid' : 'regular'} fa-circle-check"></i></button>` : ''}`;
 
@@ -670,26 +719,65 @@ function calcTotaleOreAnno() {
     return tot;
 }
 
-function classifyAssenza(tipo) {
-    const t = tipo.toLowerCase();
-    if (t.includes('ritardo') || t.includes('entrat') || t.includes('in ritardo')) return 'ritardo';
-    if (t.includes('uscit') || t.includes('permess') || t.includes('anticipata')) return 'uscita';
-    if (t.includes('assenz') || t.includes('absent')) return 'assenza';
-    return 'altro';
+function classifyAssenza(a) {
+    if (!a) return 'assenza';
+    const t = String(a.tipo || '').toLowerCase().trim();
+    const d = String(a.descrizione || '').toLowerCase().trim();
+    const txt = t + " " + d;
+    
+    // Controlliamo entrate e uscite su tutta la riga (tipo + descrizione)
+    if (t === 'r' || txt.includes('ritardo') || txt.includes('entrat')) return 'ritardo';
+    if (t === 'u' || txt.includes('uscit') || txt.includes('permess') || txt.includes('anticipata')) return 'uscita';
+    if (t === 'a' || txt.includes('assenz') || txt.includes('absent') || txt.includes('giornata') || t === '') return 'assenza';
+    
+    // Fallback sicuro
+    return 'assenza';
 }
 
-function calcOreAssenza(tipo, dataStr) {
-    const cat = classifyAssenza(tipo);
-    if (cat === 'assenza') {
-        // Ore intere basate sul giorno della settimana
-        const d = parseDateIT(dataStr);
-        if (!isNaN(d.getTime())) return getOrePer(d) || 6;
-        return 6;
+function parseTimeFromDesc(desc) {
+    if (!desc) return null;
+    const m = desc.match(/(?:alle |ore )?(\d{1,2})[:.](\d{2})/i);
+    if (!m) return null;
+    return parseInt(m[1], 10) + (parseInt(m[2], 10) / 60);
+}
+
+function calcOreAssenza(a) {
+    const cat = classifyAssenza(a);
+    const d = parseDateIT(a.data);
+    
+    let dayHours = 6;
+    if (!isNaN(d.getTime())) {
+        const op = getOrePer(d);
+        dayHours = op > 0 ? op : (d.getDay() === 4 ? 8 : 6);
     }
-    if (cat === 'ritardo' || cat === 'uscita') {
-        // Un ritardo/uscita conta come 1h equivalente
+    
+    if (cat === 'assenza') {
+        return dayHours;
+    }
+    
+    // Controlla l'orario sia nel tipo ("Entrata in ritardo alle 09:10") che nella descrizione
+    const timeDec = parseTimeFromDesc(a.tipo) ?? parseTimeFromDesc(a.descrizione);
+    
+    if (cat === 'ritardo') {
+        if (timeDec !== null) {
+            // La giornata inizia alle 8:10
+            const startOfDay = 8 + (10 / 60);
+            const missed = timeDec - startOfDay;
+            if (missed > 0) return Math.round(missed) || 1;
+        }
         return 1;
     }
+    
+    if (cat === 'uscita') {
+        if (timeDec !== null) {
+            // Fine giornata 13:50 (o 15:50 se è Giovedì/8h)
+            const endOfDay = dayHours === 8 ? 15 + (50 / 60) : 13 + (50 / 60);
+            const missed = endOfDay - timeDec;
+            if (missed > 0) return Math.round(missed) || 1;
+        }
+        return 1;
+    }
+    
     return 1;
 }
 
@@ -702,8 +790,8 @@ function populateAssenze(assenze) {
     let oreAssenze = 0, oreRitardi = 0, oreUscite = 0, oreTotMancate = 0;
 
     assenze.forEach(a => {
-        const cat = classifyAssenza(a.tipo);
-        const ore = calcOreAssenza(a.tipo, a.data);
+        const cat = classifyAssenza(a);
+        const ore = calcOreAssenza(a);
         oreTotMancate += ore;
 
         if (cat === 'assenza') { nAssenze++; oreAssenze += ore; }
@@ -722,9 +810,9 @@ function populateAssenze(assenze) {
     const badge   = $('arc-pct-badge');
     const barFill = $('arc-bar-fill');
 
-    // Anima la barra da 0 a pct (ma la barra rappresenta pct su 100%, con soglia visuale al 25%)
-    // La barra piena = 100% corrisponde alla soglia (25% delle ore); oltre la soglia la barra va oltre
-    const barPct = Math.min((pct / SOGLIA_PCT) * 100, 110); // vai fino a 110% per mostrare il superamento
+    // La barra rappresenta l'intera frazione dell'anno (0-100%).
+    // Con la soglia CSS posta al 25%, dobbiamo solo passare la percentuale assoluta.
+    const barPct = Math.min(pct, 100);
 
     setTimeout(() => {
         barFill.style.width = barPct + '%';
@@ -778,8 +866,8 @@ function populateAssenze(assenze) {
                 return;
             }
             list.forEach(a => {
-                const cat   = classifyAssenza(a.tipo);
-                const ore   = calcOreAssenza(a.tipo, a.data);
+                const cat   = classifyAssenza(a);
+                const ore   = calcOreAssenza(a);
                 const isOre = ore >= 6;
                 const stato = a.giustificata
                     ? `<span class='badge badge-ok'><i class='fa-solid fa-check'></i> Giustificata</span>`
@@ -814,7 +902,7 @@ function populateAssenze(assenze) {
     $('filter-tipo-assenze').addEventListener('change', e => {
         const v = e.target.value;
         if (v === 'all') return renderAssenzeTable(assenze);
-        renderAssenzeTable(assenze.filter(a => classifyAssenza(a.tipo) === v));
+        renderAssenzeTable(assenze.filter(a => classifyAssenza(a) === v));
     });
 }
 
@@ -849,7 +937,7 @@ function buildMaterieMap(voti) {
     const map = {};
     voti.forEach(v => {
         const n = parseVoto(v.voto);
-        if (n === null) return;
+        if (n === null || v.peso_zero) return;
         if (!map[v.materia]) map[v.materia] = { sum:0, count:0, media:0, voti:[] };
         map[v.materia].sum   += n;
         map[v.materia].count += 1;
@@ -880,9 +968,11 @@ function renderChartIfNeeded(view) {
 }
 
 function renderDashChart() {
-    const voti = State.data.voti;
-    const nums = voti.map(v => parseVoto(v.voto)).filter(n => n !== null);
-    if (!nums.length) return;
+    const votiValidi = [...State.data.voti]
+        .filter(v => parseVoto(v.voto) !== null && !v.peso_zero)
+        .sort((a,b) => parseDateIT(a.data) - parseDateIT(b.data)); // ordine cronologico per il grafico
+
+    if (!votiValidi.length) return;
 
     const ctx = $('dashChart').getContext('2d');
     const grad = ctx.createLinearGradient(0, 0, 0, 260);
@@ -893,15 +983,35 @@ function renderDashChart() {
     let range = 'all';
     function drawChart(r) {
         range = r;
-        const slice = r === 'all' ? nums : (r === '10' ? nums.slice(-10) : nums.slice(-5));
-        const labels = slice.map((_,i) => `#${i+1}`);
-        if (State.charts.dash) State.charts.dash.destroy();
+        let slice = votiValidi;
+        
+        if (r === 'q1') {
+            slice = votiValidi.filter(v => {
+                const m = parseDateIT(v.data).getMonth() + 1; // 1 to 12
+                return m >= 9 || m === 1; // Settembre (9) fino a Gennaio (1)
+            });
+        } else if (r === 'q2') {
+            slice = votiValidi.filter(v => {
+                const m = parseDateIT(v.data).getMonth() + 1;
+                return m >= 2 && m <= 8; // Febbraio (2) fino a Giugno/Agosto (8)
+            });
+        }
+        
+        // Asse X - format data
+        const labels = slice.map(v => formatDate(v.data));
+        const dataNums = slice.map(v => parseVoto(v.voto));
+        
+        if (State.charts.dash) { State.charts.dash.destroy(); State.charts.dash = null; }
+        
+        // Se non ci sono dati visibili nel periodo
+        if (slice.length === 0) return;
+        
         State.charts.dash = new Chart(ctx, {
             type: 'line',
             data: {
                 labels,
                 datasets: [{
-                    data: slice, fill: true,
+                    data: dataNums, fill: true,
                     backgroundColor: grad, borderColor: '#2563eb',
                     borderWidth: 2.5, tension: .4, pointRadius: 4,
                     pointBackgroundColor: '#fff', pointBorderColor: '#2563eb',
@@ -910,10 +1020,21 @@ function renderDashChart() {
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                plugins: { legend:{ display:false }, tooltip:{ padding:12, cornerRadius:10 } },
+                plugins: { 
+                    legend:{ display:false }, 
+                    tooltip:{ 
+                        padding:12, cornerRadius:10,
+                        callbacks: {
+                            title: (ctx) => {
+                                const i = ctx[0].dataIndex;
+                                return slice[i].materia + ' - ' + formatDate(slice[i].data);
+                            }
+                        }
+                    } 
+                },
                 scales: {
                     y: { min:2, max:10, grid:{ color: gridColor() }, border:{ dash:[4,4] } },
-                    x: { grid:{ display:false } }
+                    x: { grid:{ display:false }, ticks:{ maxRotation:45, minRotation:45 } }
                 }
             }
         });
@@ -931,7 +1052,11 @@ function renderDashChart() {
 }
 
 function renderSparkChart() {
-    const nums = State.data.voti.map(v => parseVoto(v.voto)).filter(n => n !== null).slice(-8);
+    const validi = [...State.data.voti]
+        .filter(v => parseVoto(v.voto) !== null && !v.peso_zero)
+        .sort((a,b) => parseDateIT(a.data) - parseDateIT(b.data));
+    const nums = validi.map(v => parseVoto(v.voto)).slice(-8);
+    
     if (!nums.length) return;
     const ctx = $('sparkMedia')?.getContext('2d');
     if (!ctx) return;
@@ -949,7 +1074,7 @@ function renderSparkChart() {
 function renderMedieChart() {
     const map = buildMaterieMap(State.data.voti);
     const entries = Object.entries(map).sort((a,b) => a[0].localeCompare(b[0]));
-    const labels  = entries.map(([k]) => truncate(k, 14));
+    const labels  = entries.map(([k]) => truncate(k, 12));
     const medie   = entries.map(([,v]) => v.media.toFixed(2));
     const colors  = entries.map(([,v]) => v.media >= 6 ? '#2563eb' : '#ef4444');
 
@@ -962,8 +1087,11 @@ function renderMedieChart() {
             responsive:true, maintainAspectRatio:false,
             plugins: { legend:{display:false}, tooltip:{ padding:10, cornerRadius:10 } },
             scales: {
-                y: { min:0, max:10, grid:{ color: gridColor() }, border:{ dash:[4,4] } },
-                x: { grid:{ display:false } }
+                y: { min:0, max:10, grid:{ color: gridColor() }, border:{ dash:[4,4] }, ticks: { color: '#8b8b9e', font: { size: 11 } } },
+                x: { 
+                    grid:{ display:false },
+                    ticks: { color: '#8b8b9e', font: { size: 10 }, maxRotation: 40, minRotation: 40, autoSkip: false }
+                }
             }
         }
     });
@@ -992,7 +1120,15 @@ function renderRadarChart() {
         options: {
             responsive:true, maintainAspectRatio:false,
             plugins: { legend:{display:false} },
-            scales: { r: { min:0, max:10, grid:{ color: gridColor() }, pointLabels:{color:'var(--c-muted)', font:{size:11}} } }
+            scales: { 
+                r: { 
+                    min: 0, max: 10, 
+                    grid: { color: gridColor() }, 
+                    angleLines: { color: gridColor() },
+                    pointLabels: { color: '#8b8b9e', font: { size: 10 } },
+                    ticks: { backdropColor: 'transparent', color: '#8b8b9e', font: { size: 10 } }
+                } 
+            }
         }
     });
 }
@@ -1024,6 +1160,184 @@ $('sort-voti').addEventListener('click', function() {
         : '<i class="fa-solid fa-sort"></i> Ordina';
 });
 
+// ────────────────────────────────────────────────────
+// ORARIO
+// ────────────────────────────────────────────────────
+let allOrario = [];
+function populateOrario(orarioData) {
+    if (!orarioData || !Array.isArray(orarioData)) return;
+    
+    const dayOrder = { 'Lunedì': 1, 'Martedì': 2, 'Mercoledì': 3, 'Giovedì': 4, 'Venerdì': 5, 'Sabato': 6, 'Domenica': 7 };
+    const unique = [];
+    const seenSlots = new Set();
+    
+    // Analizziamo partendo dalla fine per assicurarci di prendere l'orario definitivo (più recente) e non quello provvisorio.
+    const reversed = [...orarioData].sort((a, b) => b.data_inizio - a.data_inizio);
+    
+    for (const item of reversed) {
+        if (!item.giorno_tradotto) continue;
+        const key = item.giorno_tradotto + '_' + item.ora_inizio_tradotta;
+        if (!seenSlots.has(key)) {
+            seenSlots.add(key);
+            unique.push(item);
+        }
+    }
+    
+    // Ordiniamo per giorno e poi per ora
+    allOrario = unique.sort((a, b) => {
+        const d1 = dayOrder[a.giorno_tradotto] || 99;
+        const d2 = dayOrder[b.giorno_tradotto] || 99;
+        if (d1 !== d2) return d1 - d2;
+        return (a.ora_inizio_tradotta || '').localeCompare(b.ora_inizio_tradotta || '');
+    });
+    
+    renderOrario();
+}
+
+function renderOrario() {
+    const container = $('orario-container');
+    const filterGiorno = $('filter-giorno-orario').value;
+    container.innerHTML = '';
+    
+    if (allOrario.length === 0) {
+        container.innerHTML = '<div style="color:var(--c-muted); padding:20px;">Nessun orario trovato.</div>';
+        return;
+    }
+    
+    let lastDay = '';
+    
+    allOrario.forEach(item => {
+        if (!item.giorno_tradotto) return;
+        const giorno = item.giorno_tradotto;
+        
+        if (filterGiorno !== 'all' && giorno !== filterGiorno) return;
+        
+        // Header del giorno
+        if (giorno !== lastDay) {
+            const h = document.createElement('div');
+            h.className = 'orario-day-header';
+            h.innerHTML = `<i class="fa-solid fa-calendar-day"></i> ${giorno}`;
+            container.appendChild(h);
+            lastDay = giorno;
+        }
+        
+        const card = document.createElement('div');
+        card.className = 'orario-card';
+        card.innerHTML = `
+            <div class="orario-accent"></div>
+            <div class="orario-body">
+                <div class="orario-time">
+                    <i class="fa-regular fa-clock"></i> 
+                    ${item.ora_inizio_tradotta || ''} - ${item.ora_fine_tradotta || ''}
+                </div>
+                <div class="orario-subject">${item.descrizione_materia || item.descrizione || ''}</div>
+                <div class="orario-teacher">
+                    <i class="fa-solid fa-user-tie"></i> ${item.cognome_professore || ''}
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+    
+    if (container.innerHTML === '') {
+        container.innerHTML = '<div style="color:var(--c-muted); padding:20px;">Nessuna materia per il filtro selezionato.</div>';
+    }
+}
+
+$(`filter-giorno-orario`).addEventListener('change', renderOrario);
+
+// ────────────────────────────────────────────────────
+// CORSI
+// ────────────────────────────────────────────────────
+let allCorsi = [];
+function populateCorsi(corsiData) {
+    if (!corsiData || !Array.isArray(corsiData)) return;
+    allCorsi = corsiData;
+    renderCorsi();
+}
+
+function renderCorsi() {
+    const container = $('corsi-container');
+    const filter = $('filter-corsi-stato').value;
+    container.innerHTML = '';
+    
+    if (allCorsi.length === 0) {
+        container.innerHTML = '<div style="color:var(--c-muted); padding:20px;">Nessun corso trovato.</div>';
+        return;
+    }
+    
+    let renderedCount = 0;
+    
+    allCorsi.forEach(corso => {
+        if (filter === 'iscritti' && !corso.iscritto) return;
+        
+        renderedCount++;
+        const card = document.createElement('div');
+        card.className = `corso-card ${corso.iscritto ? 'iscr' : ''}`;
+        
+        const detailsId = `corso-det-${corso.id}`;
+        
+        card.innerHTML = `
+            <div class="corso-body">
+                <div class="corso-title">${corso.titolo}</div>
+                <div class="corso-prof"><i class="fa-solid fa-user-tie"></i> ${corso.professore}</div>
+                <div class="corso-period"><i class="fa-regular fa-calendar"></i> Periodo: ${corso.periodo}</div>
+                
+                ${corso.dettagli ? `
+                    <button class="btn-toggle-details" onclick="document.getElementById('${detailsId}').classList.toggle('open')">
+                        <i class="fa-solid fa-circle-info"></i> Mostra Dettagli
+                    </button>
+                    <div class="corso-details" id="${detailsId}">${corso.dettagli}</div>
+                ` : ''}
+            </div>
+            <div class="corso-footer">
+                <div class="corso-status ${corso.iscritto ? 'iscr' : 'uniscr'}">
+                    <i class="fa-solid ${corso.iscritto ? 'fa-check-circle' : 'fa-times-circle'}"></i> 
+                    ${corso.iscritto ? 'Iscritto' : 'Non iscritto'}
+                </div>
+                <button class="btn-pill ${corso.iscritto ? 'danger' : ''}" 
+                        onclick="toggleIscrizioneCorso('${corso.id}', ${corso.iscritto ? 'false' : 'true'})">
+                    ${corso.iscritto ? 'Disiscriviti' : 'Iscriviti'}
+                </button>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+    
+    if (renderedCount === 0) {
+        container.innerHTML = '<div style="color:var(--c-muted); padding:20px;">Nessun corso soddisfa il filtro.</div>';
+    }
+}
+
+$('filter-corsi-stato').addEventListener('change', renderCorsi);
+
+async function toggleIscrizioneCorso(idCorso, subscribe) {
+    const actionStr = subscribe ? 'subscribe' : 'unsubscribe';
+    
+    try {
+        const res = await fetch('/api/corsi/toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id_corso: idCorso, action: actionStr })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+            // Aggiorna lo stato localmente
+            const c = allCorsi.find(x => x.id === idCorso);
+            if (c) {
+                c.iscritto = subscribe;
+                renderCorsi();
+            }
+        } else {
+            alert('Errore durante l\'operazione');
+        }
+    } catch(err) {
+        console.error(err);
+        alert('Errore di connessione al server.');
+    }
+}
+
 // Ricerca globale
 $('global-search').addEventListener('input', function() {
     const q = this.value.toLowerCase().trim();
@@ -1037,6 +1351,41 @@ $('global-search').addEventListener('input', function() {
     // Cerca nell'agenda
     $$('#agenda-container .ag-card').forEach(c => {
         c.style.display = !q || c.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+    
+    // Cerca nell'orario
+    $$('#orario-container .orario-card').forEach(c => {
+        c.style.display = !q || c.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+    
+    // Cerca nei corsi
+    $$('#corsi-container .corso-card').forEach(c => {
+        c.style.display = !q || c.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+
+    // Cerca nei compiti
+    $$('#compiti-timeline .tl-card').forEach(c => {
+        c.style.display = !q || c.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+    // Nascondi i giorni vuoti nei compiti
+    $$('#compiti-timeline .tl-day-block').forEach(b => {
+        const visibleCards = Array.from(b.querySelectorAll('.tl-card')).filter(c => c.style.display !== 'none');
+        b.style.display = (!q || visibleCards.length) ? '' : 'none';
+    });
+
+    // Cerca nelle assenze
+    $$('#assenze-body tr').forEach(r => {
+        r.style.display = !q || r.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+
+    // Cerca nelle note
+    $$('#note-body .note-card').forEach(c => {
+        c.style.display = !q || c.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+
+    // Cerca nei prossimi impegni (dashboard)
+    $$('#dash-agenda li.ev-item').forEach(li => {
+        li.style.display = !q || li.textContent.toLowerCase().includes(q) ? '' : 'none';
     });
 });
 

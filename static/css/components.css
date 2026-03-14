@@ -108,9 +108,12 @@
 
 /* Voto Chip */
 .voto-chip { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 14px; font-weight: 800; font-size: 1.1rem; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
-.voto-chip.ok { background: var(--c-ok-l); color: var(--c-ok); border: 1px solid rgba(34,197,94,.3); }
-.voto-chip.warn { background: var(--c-warn-l); color: var(--c-warn); border: 1px solid rgba(245,158,11,.3); }
-.voto-chip.danger { background: var(--c-danger-l); color: var(--c-danger); border: 1px solid rgba(239,68,68,.3); }
+.voto-chip.excel { background: rgba(14, 165, 233, 0.15); color: #0ea5e9; border: 1px solid rgba(14, 165, 233, 0.3); } /* Azzurro 9-10 */
+.voto-chip.good { background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3); } /* Verde Vivo 7-8 */
+.voto-chip.ok { background: rgba(132, 204, 22, 0.15); color: #84cc16; border: 1px solid rgba(132, 204, 22, 0.3); } /* Verde Lime 6 */
+.voto-chip.warn { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); } /* Arancio 5 */
+.voto-chip.danger { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); } /* Rosso < 5 */
+.voto-chip.muted { background: var(--c-surface-3); color: var(--c-muted); border: 1px solid var(--c-border); } /* Grigio N/D */
 
 /* Responsive adjustments */
 @media (max-width: 900px) {

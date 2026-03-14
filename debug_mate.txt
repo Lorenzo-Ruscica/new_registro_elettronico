@@ -1,0 +1,153 @@
+<tr data-materia="1000078" data-tipo="voto">
+<td class="cell-middle center">
+<div class="circle-45 small card content green large">
+<strong>6</strong>
+</div>
+</td>
+<td>
+<div class="bold">MATE &amp; COMPLEMENTI</div>
+<div>
+                                        02/03/2026
+                                        <div class="row-padding show-inline-block margin-left-small left-align border-left-2 border-green">
+<i>Scritto</i>
+</div>
+</div>
+<div>
+<i class="small">MORETTI STEFANO</i>
+                                         -  limiti
+                                    </div>
+</td>
+</tr>
+
+<tr data-materia="1000078" data-tipo="voto">
+<td class="cell-middle center">
+<div class="circle-45 small card content red large">
+<strong>4.5</strong>
+</div>
+</td>
+<td>
+<div class="bold">MATE &amp; COMPLEMENTI</div>
+<div>
+                                        13/01/2026
+                                        <div class="row-padding show-inline-block margin-left-small left-align border-left-2 border-green">
+<i>Scritto</i>
+</div>
+</div>
+<div>
+<i class="small">MORETTI STEFANO</i>
+                                         -  Equazioni e disequazioni goniometriche
+                                    </div>
+</td>
+</tr>
+
+<tr data-materia="1000078" data-tipo="voto">
+<td class="cell-middle center">
+<div class="circle-45 small card content green large">
+<strong>6</strong>
+</div>
+</td>
+<td>
+<div class="bold">MATE &amp; COMPLEMENTI</div>
+<div>
+                                        25/11/2025
+                                        <div class="row-padding show-inline-block margin-left-small left-align border-left-2 border-green">
+<i>Scritto</i>
+</div>
+</div>
+<div>
+<i class="small">MORETTI STEFANO</i>
+                                         -  Trigonometria
+                                    </div>
+</td>
+</tr>
+
+<tr data-materia="1000078" data-tipo="voto">
+<td class="cell-middle center">
+<div class="circle-45 small card content red large">
+<strong>4</strong>
+</div>
+<div class="margin-top-small small border round padding-xsmall">
+                                            Il voto non fa media
+                                        </div>
+</td>
+<td>
+<div class="bold">MATE &amp; COMPLEMENTI</div>
+<div>
+                                        18/11/2025
+                                        <div class="row-padding show-inline-block margin-left-small left-align border-left-2 border-green">
+<i>Scritto</i>
+</div>
+</div>
+<div>
+<i class="small">MORETTI STEFANO</i>
+                                         -  Foglietti
+                                    </div>
+</td>
+</tr>
+
+<tr data-materia="1000078" data-tipo="voto">
+<td class="cell-middle center">
+<div class="circle-45 small card content green large">
+<strong>7</strong>
+</div>
+</td>
+<td>
+<div class="bold">MATE &amp; COMPLEMENTI</div>
+<div>
+                                        28/10/2025
+                                        <div class="row-padding show-inline-block margin-left-small left-align border-left-2 border-green">
+<i>Scritto</i>
+</div>
+</div>
+<div>
+<i class="small">MORETTI STEFANO</i>
+                                         -  Compito svolto il 28 o il 29 sulle formule goniometriche
+                                    </div>
+</td>
+</tr>
+
+<tr data-materia="1000078" data-tipo="voto">
+<td class="cell-middle center">
+<div class="circle-45 small card content green large">
+<strong>8</strong>
+</div>
+<div class="margin-top-small small border round padding-xsmall">
+                                            Il voto non fa media
+                                        </div>
+</td>
+<td>
+<div class="bold">MATE &amp; COMPLEMENTI</div>
+<div>
+                                        21/10/2025
+                                        <div class="row-padding show-inline-block margin-left-small left-align border-left-2 border-green">
+<i>Scritto</i>
+</div>
+</div>
+<div>
+<i class="small">MORETTI STEFANO</i>
+                                         -  Foglietti
+                                    </div>
+</td>
+</tr>
+
+<tr data-materia="1000078" data-tipo="voto">
+<td class="cell-middle center">
+<div class="circle-45 small card content red large">
+<strong>5.5</strong>
+</div>
+</td>
+<td>
+<div class="bold">MATE &amp; COMPLEMENTI</div>
+<div>
+                                        06/10/2025
+                                        <div class="row-padding show-inline-block margin-left-small left-align border-left-2 border-green">
+<i>Scritto</i>
+</div>
+</div>
+<div>
+<i class="small">MORETTI STEFANO</i>
+                                         -  Compito di ingresso
+                                    </div>
+</td>
+</tr>
+
