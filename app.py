@@ -11,6 +11,10 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY", "chiave_super_segreta_static
 def index():
     return render_template("index.html")
 
+@app.route('/sw.js')
+def service_worker():
+    return app.send_static_file('sw.js')
+
 @app.route("/api/login", methods=["POST"])
 def login():
     data = request.json
