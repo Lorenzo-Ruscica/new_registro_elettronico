@@ -129,21 +129,22 @@
     border-bottom: 1px solid var(--c-border); 
     background: var(--c-surface); 
     padding-top: var(--safe-top); 
-    height: calc(56px + var(--safe-top)); 
+    height: calc(52px + var(--safe-top)); 
   }
-  .views-container { padding: 12px 14px calc(var(--bottom-h) + var(--safe-bottom) + 12px); }
+  .views-container { padding: 12px 14px calc(var(--bottom-h) + var(--safe-bottom) + 8px); }
   
   .tb-search-wrap { display: none; }
   .tb-date { display: none; }
-  .tb-title { font-size: 1.15rem; font-weight: 900; }
-  .tb-menu-btn { width: 38px; height: 38px; border-radius: 10px; }
-  .tb-user { display: flex; }
+  .tb-title { font-size: 1.1rem; font-weight: 900; }
+  .tb-menu-btn { width: 34px; height: 34px; border-radius: 8px; }
+  .tb-user { display: flex; gap: 8px; }
+  .tb-avatar { width: 30px; height: 30px; }
   
   .bottom-nav { 
-    height: calc(var(--bottom-h) + var(--safe-bottom));
+    height: calc(72px + var(--safe-bottom));
     padding-bottom: var(--safe-bottom);
     background: var(--c-surface);
     border-top: 1px solid var(--c-border);
-    padding-top: 6px;
+    padding-top: 4px;
   }
 }
