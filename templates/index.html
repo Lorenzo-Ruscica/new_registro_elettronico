@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="it" data-theme="dark">
+<html lang="it" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -31,9 +31,6 @@
 ============================================================ -->
 <div id="login-screen" class="screen is-active">
     <div class="login-bg">
-        <div class="login-orb orb-1"></div>
-        <div class="login-orb orb-2"></div>
-        <div class="login-orb orb-3"></div>
     </div>
     <div class="login-card reveal-card">
         <div class="login-icon-wrap">
@@ -169,6 +166,11 @@
                     <button class="tb-clear-search" id="clear-search" hidden><i class="fa-solid fa-xmark"></i></button>
                 </div>
                 <span class="tb-date" id="current-date"></span>
+                <div class="tb-user">
+                    <button class="tb-theme-btn" id="theme-toggle-mobile" title="Cambia tema"><i class="fa-solid fa-moon"></i></button>
+                    <div class="tb-avatar" id="tb-avatar-mobile">S</div>
+                    <button class="tb-logout-btn" id="logout-btn-mobile" title="Esci"><i class="fa-solid fa-sign-out-alt"></i></button>
+                </div>
             </div>
         </header>
 
@@ -210,6 +212,12 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- Recent Grades -->
+                <div class="card" style="margin-bottom: 24px;">
+                    <div class="card-header"><h3>Ultimi Voti</h3><a href="#" class="sb-link-small" data-view="voti">Vedi tutti</a></div>
+                    <div class="recent-voti-grid" id="dash-recent-voti"></div>
+                </div>
 
                 <!-- Charts + Prossimi Impegni -->
                 <div class="dash-grid">
@@ -227,6 +235,14 @@
                     <div class="card">
                         <div class="card-header"><h3>Prossimi Impegni</h3></div>
                         <ul class="event-list" id="dash-agenda"></ul>
+                    </div>
+                </div>
+
+                <!-- Secondary Grid: Upcoming Homework -->
+                <div class="dash-grid" style="margin-bottom: 24px; grid-template-columns: 1fr;">
+                    <div class="card">
+                        <div class="card-header"><h3>Compiti Imminenti</h3><span class="card-badge" id="badge-compiti-imminenti">0</span></div>
+                        <ul class="event-list" id="dash-upcoming-compiti"></ul>
                     </div>
                 </div>
 
@@ -436,8 +452,23 @@
                     
                     <div style="margin-bottom: 32px; border-left: 3px solid var(--c-primary); padding-left: 20px;">
                         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-                            <h3 style="font-size: 1.3rem;">v0.3.0 (Alpha)</h3>
+                            <h3 style="font-size: 1.3rem;">v0.4.0 (Professional PWA)</h3>
                             <span class="badge badge-primary">Ultima release</span>
+                        </div>
+                        <p style="color: var(--c-muted); margin-bottom: 12px; font-weight: 600;">Rivoluzione Design PWA & AI Intelligence</p>
+                        <ul style="color: var(--c-text); font-size: 0.95rem; line-height: 1.6; list-style-type: disc; padding-left: 18px;">
+                            <li><strong>PWA Support:</strong> EduTrack è ora installabile su Android e iOS come app nativa con supporto offline avanzato (Service Worker v3).</li>
+                            <li><strong>Design Overhaul:</strong> Introdotto il tema "Light Flat Professional". Eliminati i bagliori neon e i gradienti per una veste grafica premium e asciutta.</li>
+                            <li><strong>Dashboard Smart:</strong> Aggiunti nuovi widget dinamici per gli "Ultimi Voti" e i "Compiti Imminenti".</li>
+                            <li><strong>EduTrack AI:</strong> Integrato assistente IA intelligente con accesso a voti, argomenti e agenda per suggerimenti di studio personalizzati.</li>
+                            <li><strong>Esperienza Native App:</strong> Supporto completo alle "Safe Areas" (notch dei cellulari) e icone HD personalizzate per la home screen.</li>
+                            <li><strong>Timeline Pulita:</strong> Rimossa la ridondanza della data nel calendario timeline, lasciando solo il giorno della settimana per una lettura rapida.</li>
+                        </ul>
+                    </div>
+
+                    <div style="margin-bottom: 32px; border-left: 3px solid var(--c-surface-3); padding-left: 20px;">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                            <h3 style="font-size: 1.3rem;">v0.3.0</h3>
                         </div>
                         <p style="color: var(--c-muted); margin-bottom: 12px; font-weight: 600;">Interfaccia Native App e Fix CSS</p>
                         <ul style="color: var(--c-text); font-size: 0.95rem; line-height: 1.6; list-style-type: disc; padding-left: 18px;">

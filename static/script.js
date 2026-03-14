@@ -11,7 +11,7 @@ const State = {
     data: null,
     charts: {},
     sortDir: 'date-desc',
-    theme: localStorage.getItem('edu-theme') || 'dark',
+    theme: localStorage.getItem('edu-theme') || 'light',
 };
 
 // ────────────────────────────────────────────────────
@@ -84,18 +84,20 @@ function applyTheme(theme) {
 }
 applyTheme(State.theme);
 
-$('theme-toggle').addEventListener('click', () => {
+const toggleTheme = () => {
     applyTheme(State.theme === 'dark' ? 'light' : 'dark');
-    // Ridisegna i grafici con i nuovi colori
     if (State.charts.dash)   { State.charts.dash.destroy();   State.charts.dash   = null; }
     if (State.charts.medie)  { State.charts.medie.destroy();  State.charts.medie  = null; }
     if (State.charts.radar)  { State.charts.radar.destroy();  State.charts.radar  = null; }
     if (State.charts.spark)  { State.charts.spark.destroy();  State.charts.spark  = null; }
     if (State.data) {
-        const current = document.querySelector('.sb-link.is-active')?.dataset.view;
+        const current = document.querySelector('.sb-link.is-active, .bn-item.is-active')?.dataset.view;
         renderChartIfNeeded(current);
     }
-});
+};
+
+$('theme-toggle').addEventListener('click', toggleTheme);
+if ($('theme-toggle-mobile')) $('theme-toggle-mobile').addEventListener('click', toggleTheme);
 
 // ────────────────────────────────────────────────────
 // DATE DISPLAY
@@ -170,11 +172,14 @@ overlay.addEventListener('click', closeMobileSidebar);
 // ────────────────────────────────────────────────────
 // LOGOUT
 // ────────────────────────────────────────────────────
-$('app-logout-btn').addEventListener('click', () => {
+const doLogout = () => {
     $('app-screen').style.opacity = '0';
     $('app-screen').style.transition = 'opacity .4s';
     setTimeout(() => fetch('/api/logout', { method:'POST' }).then(() => location.reload()), 350);
-});
+};
+
+$('app-logout-btn').addEventListener('click', doLogout);
+if ($('logout-btn-mobile')) $('logout-btn-mobile').addEventListener('click', doLogout);
 
 // ────────────────────────────────────────────────────
 // SHOW PASSWORD TOGGLE
@@ -321,10 +326,16 @@ function populateAll(data) {
             $('user-display').textContent = data.utente.name;
             const init = data.utente.name.charAt(0).toUpperCase();
             $('sb-avatar-initial').textContent = init;
+            if ($('tb-avatar-mobile')) $('tb-avatar-mobile').textContent = init;
         }
         if (data.utente.foto) {
+            const imgHtml = `<img src="${data.utente.foto}" alt="Profilo">`;
             $('sb-avatar-initial').style.background = 'transparent';
-            $('sb-avatar-initial').innerHTML = `<img src="${data.utente.foto}" alt="Profilo" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+            $('sb-avatar-initial').innerHTML = imgHtml;
+            if ($('tb-avatar-mobile')) {
+                $('tb-avatar-mobile').style.background = 'transparent';
+                $('tb-avatar-mobile').innerHTML = imgHtml;
+            }
         }
     }
 
@@ -362,6 +373,27 @@ function populateDashboard(data) {
         ? `<span style="color:var(--c-danger)"><i class='fa-solid fa-circle-exclamation'></i> ${dagiust} da giustificare</span>`
         : `<span style="color:var(--c-ok)"><i class='fa-solid fa-circle-check'></i> Tutto ok</span>`;
 
+    // Recent Grades
+    const recentVotiEl = $('dash-recent-voti');
+    if (recentVotiEl) {
+        recentVotiEl.innerHTML = '';
+        const recentVoti = [...data.voti]
+            .sort((a,b) => parseDateIT(b.data) - parseDateIT(a.data))
+            .slice(0, 4);
+        recentVoti.forEach(v => {
+            const n = parseVoto(v.voto);
+            const cls = votoClass(n);
+            recentVotiEl.innerHTML += `
+            <div class="rv-item">
+                <div class="voto-chip ${cls}" style="width:40px;height:40px;font-size:1rem;flex-shrink:0">${v.voto}</div>
+                <div class="rv-materia">
+                    <span class="rv-name">${v.materia}</span>
+                    <span class="rv-date">${v.data}</span>
+                </div>
+            </div>`;
+        });
+    }
+
     // Agenda panel
     const agendaEl = $('dash-agenda');
     agendaEl.innerHTML = '';
@@ -386,6 +418,46 @@ function populateDashboard(data) {
                 </div>
             </li>`;
         });
+    }
+
+    // Upcoming Homework
+    const compitiEl = $('dash-upcoming-compiti');
+    if (compitiEl) {
+        compitiEl.innerHTML = '';
+        const today = new Date(); today.setHours(0,0,0,0);
+        const doneSet = new Set(JSON.parse(localStorage.getItem('edu-done') || '[]'));
+        
+        // Find tasks in argomenti that aren't old or are marked as assigned
+        const upcoming = data.argomenti
+            .filter(a => /asseg|compit/i.test(a.tipo))
+            .filter(a => {
+                const d = parseDateIT(a.data);
+                // We show today or future. If no future, we take last 4?
+                // User said "imminenti", so future/today is best.
+                return !isNaN(d.getTime()) && d >= today;
+            })
+            .sort((a,b) => parseDateIT(a.data) - parseDateIT(b.data))
+            .slice(0, 4);
+        
+        $('badge-compiti-imminenti').textContent = upcoming.length;
+
+        if (!upcoming.length) {
+            compitiEl.innerHTML = `<li class="ev-item"><div class="ev-body"><div class="ev-title" style="color:var(--c-muted)">Nessun compito imminente</div></div></li>`;
+        } else {
+            upcoming.forEach(c => {
+                compitiEl.innerHTML += `
+                <li class="ev-item">
+                    <div class="ev-dot warn"></div>
+                    <div class="ev-body">
+                        <div class="ev-title">${truncate(c.contenuto, 70)}</div>
+                        <div class="ev-meta">
+                            <span><i class='fa-regular fa-calendar'></i> ${c.data}</span>
+                            <span class="badge badge-muted">${c.materia}</span>
+                        </div>
+                    </div>
+                </li>`;
+            });
+        }
     }
 
     // Subject progress bars
@@ -612,7 +684,7 @@ function renderTimeline(argomenti, filterType, filterMateria = 'all') {
         const isValid = !isNaN(dateObj.getTime());
         const dayNum  = isValid ? dateObj.getDate() : '?';
         const dayMon  = isValid ? dateObj.toLocaleDateString('it-IT', { month:'short' }).toUpperCase() : '';
-        const dayFull = isValid ? dateObj.toLocaleDateString('it-IT', { weekday:'long', day:'numeric', month:'long' }).replace(/^./, c => c.toUpperCase()) : day;
+        const dayFull = isValid ? dateObj.toLocaleDateString('it-IT', { weekday:'long' }).replace(/^./, c => c.toUpperCase()) : day;
 
         const block = document.createElement('div');
         block.className = 'tl-day-block';

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'edutrack-v1';
+const CACHE_NAME = 'edutrack-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/static/css/base.css',
