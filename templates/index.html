@@ -1,229 +1,330 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="it" data-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0a0a0f">
     <title>EduTrack — Registro Elettronico</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
-    <!-- ============= LOGIN ============= -->
-    <div id="login-screen" class="screen active">
-        <div class="login-card anim-scale-in">
-            <div class="login-logo-wrap">
-                <div class="login-logo"><i class="fa-solid fa-graduation-cap"></i></div>
+<!-- ============================================================
+     LOGIN SCREEN
+============================================================ -->
+<div id="login-screen" class="screen is-active">
+    <div class="login-bg">
+        <div class="login-orb orb-1"></div>
+        <div class="login-orb orb-2"></div>
+        <div class="login-orb orb-3"></div>
+    </div>
+    <div class="login-card reveal-card">
+        <div class="login-icon-wrap">
+            <i class="fa-solid fa-graduation-cap"></i>
+        </div>
+        <h1 class="login-title">EduTrack</h1>
+        <p class="login-sub">Registro elettronico scolastico personale</p>
+
+        <form id="login-form" autocomplete="off">
+            <div class="field-group">
+                <label class="field-label">Codice Studente</label>
+                <div class="field-wrap">
+                    <i class="fa-regular fa-id-card field-ico"></i>
+                    <input type="text" id="username" class="field-input" placeholder="Es. 616709" required autocomplete="username">
+                </div>
             </div>
-            <h1>Accedi a EduTrack</h1>
-            <p class="login-sub">Il tuo registro personale, completamente ridisegnato.</p>
-            <form id="login-form" autocomplete="off">
-                <div class="field">
-                    <label>Codice Studente</label>
-                    <div class="input-box">
-                        <i class="fa-regular fa-user"></i>
-                        <input type="text" id="username" placeholder="Es. 616709" required>
-                    </div>
+            <div class="field-group">
+                <label class="field-label">Password</label>
+                <div class="field-wrap">
+                    <i class="fa-solid fa-lock field-ico"></i>
+                    <input type="password" id="password" class="field-input" placeholder="••••••••" required autocomplete="current-password">
+                    <button type="button" id="toggle-pwd" class="field-eye"><i class="fa-solid fa-eye"></i></button>
                 </div>
-                <div class="field">
-                    <label>Password</label>
-                    <div class="input-box">
-                        <i class="fa-solid fa-lock"></i>
-                        <input type="password" id="password" placeholder="Inserisci la password" required>
-                        <button type="button" class="eye-toggle" id="toggle-pw"><i class="fa-solid fa-eye"></i></button>
-                    </div>
-                </div>
-                <p class="err" id="login-error"></p>
-                <button type="submit" class="btn-main" id="login-btn">
-                    <span class="btn-label">Continua</span>
-                    <span class="btn-spin" style="display:none"></span>
-                </button>
-            </form>
-            <p class="login-foot">I tuoi dati sono protetti da crittografia end-to-end.</p>
-        </div>
+            </div>
+            <p class="login-error" id="login-error"></p>
+            <button type="submit" class="btn-cta" id="login-btn">
+                <span class="cta-text"><i class="fa-solid fa-arrow-right-to-bracket"></i> Accedi</span>
+                <span class="cta-loader" hidden><i class="fa-solid fa-circle-notch fa-spin"></i> Connessione...</span>
+            </button>
+        </form>
+        <p class="login-note"><i class="fa-solid fa-shield-halved"></i> Connessione crittografata end-to-end</p>
     </div>
+</div>
 
-    <!-- ============= LOADING ============= -->
-    <div id="loading-screen" class="screen">
-        <div class="loader-wrap">
-            <div class="dot-spinner"><div></div><div></div><div></div></div>
-            <h3>Sincronizzazione in corso</h3>
-            <p id="sync-status">Connessione al server d'istituto...</p>
+<!-- ============================================================
+     SYNC / LOADING SCREEN
+============================================================ -->
+<div id="sync-screen" class="screen">
+    <div class="sync-wrap">
+        <div class="sync-ring">
+            <div class="sync-ring-inner"></div>
         </div>
+        <h3 class="sync-title">Sincronizzazione</h3>
+        <p class="sync-sub" id="sync-status">Recupero dati d'istituto...</p>
+        <div class="sync-progress-bar"><div class="sync-progress-fill" id="sync-fill"></div></div>
     </div>
+</div>
 
-    <!-- ============= APP ============= -->
-    <div id="app-screen" class="screen app-shell">
+<!-- ============================================================
+     APP SHELL
+============================================================ -->
+<div id="app-screen" class="screen app-shell">
 
-        <!-- MOBILE BOTTOM NAV (visibile solo su mobile) -->
-        <nav class="mobile-nav">
-            <a href="#" class="mob-item active" data-target="dashboard"><i class="fa-solid fa-shapes"></i><span>Home</span></a>
-            <a href="#" class="mob-item" data-target="voti"><i class="fa-solid fa-chart-simple"></i><span>Voti</span></a>
-            <a href="#" class="mob-item" data-target="agenda"><i class="fa-regular fa-calendar"></i><span>Agenda</span></a>
-            <a href="#" class="mob-item" data-target="compiti"><i class="fa-solid fa-check-double"></i><span>Compiti</span></a>
-            <a href="#" class="mob-item" data-target="assenze"><i class="fa-solid fa-user-clock"></i><span>Assenze</span></a>
-            <a href="#" class="mob-item" data-target="note"><i class="fa-solid fa-bell"></i><span>Note</span></a>
-        </nav>
+    <!-- SIDEBAR (Tablet/Desktop) -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-top">
+            <div class="sb-brand">
+                <span class="sb-logo"><i class="fa-solid fa-graduation-cap"></i></span>
+                <span class="sb-name">EduTrack</span>
+            </div>
 
-        <!-- SIDEBAR DESKTOP -->
-        <aside class="sidebar">
-            <div class="s-brand"><i class="fa-solid fa-graduation-cap"></i><span>EduTrack</span></div>
-            <p class="s-label">Navigazione</p>
-            <nav class="s-nav">
-                <a href="#" class="s-link active" data-target="dashboard"><i class="fa-solid fa-shapes"></i>Dashboard</a>
-                <a href="#" class="s-link" data-target="voti"><i class="fa-solid fa-chart-simple"></i>Valutazioni</a>
-                <a href="#" class="s-link" data-target="agenda"><i class="fa-regular fa-calendar"></i>Calendario</a>
-                <a href="#" class="s-link" data-target="compiti"><i class="fa-solid fa-check-double"></i>Compiti</a>
-                <a href="#" class="s-link" data-target="assenze"><i class="fa-solid fa-user-clock"></i>Registro Assenze</a>
-                <a href="#" class="s-link" data-target="note"><i class="fa-solid fa-bell"></i>Note</a>
+            <nav class="sb-nav">
+                <span class="sb-section-label">Principale</span>
+                <a href="#" class="sb-link is-active" data-view="dashboard">
+                    <i class="fa-solid fa-chart-pie"></i><span>Dashboard</span>
+                </a>
+                <a href="#" class="sb-link" data-view="voti">
+                    <i class="fa-solid fa-star-half-stroke"></i><span>Voti</span>
+                </a>
+                <a href="#" class="sb-link" data-view="agenda">
+                    <i class="fa-regular fa-calendar-days"></i><span>Agenda</span>
+                </a>
+                <a href="#" class="sb-link" data-view="compiti">
+                    <i class="fa-solid fa-list-check"></i><span>Compiti</span>
+                </a>
+                <span class="sb-section-label" style="margin-top:10px">Registro</span>
+                <a href="#" class="sb-link" data-view="assenze">
+                    <i class="fa-solid fa-user-xmark"></i><span>Assenze</span>
+                </a>
+                <a href="#" class="sb-link" data-view="note">
+                    <i class="fa-solid fa-triangle-exclamation"></i><span>Note</span>
+                </a>
             </nav>
-            <div class="s-footer">
-                <div class="s-user">
-                    <div class="s-avatar"><i class="fa-solid fa-user"></i></div>
-                    <div><strong id="user-display">Studente</strong><small>Online</small></div>
+        </div>
+
+        <div class="sidebar-bottom">
+            <div class="sb-user">
+                <div class="sb-avatar" id="sb-avatar-initial">S</div>
+                <div class="sb-user-info">
+                    <strong id="user-display">Studente</strong>
+                    <small>Studente &bull; <span class="dot-online"></span> Online</small>
                 </div>
-                <button class="s-logout" id="logout-btn"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
             </div>
-        </aside>
+            <div class="sb-actions">
+                <button class="sb-icon-btn" id="theme-toggle" title="Cambia tema"><i class="fa-solid fa-circle-half-stroke"></i></button>
+                <button class="sb-icon-btn danger" id="logout-btn" title="Disconnetti"><i class="fa-solid fa-power-off"></i></button>
+            </div>
+        </div>
+    </aside>
 
-        <!-- MAIN -->
-        <main class="main">
-            <!-- STICKY TOPBAR -->
-            <header class="topbar">
-                <h2 class="topbar-title" id="page-title">Dashboard</h2>
-                <div class="topbar-r">
-                    <div class="searchbox">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="text" id="global-search" placeholder="Cerca voti, materie...">
-                    </div>
-                    <span class="today-badge" id="current-date"></span>
+    <!-- MAIN AREA -->
+    <div class="main-wrap">
+
+        <!-- TOPBAR -->
+        <header class="topbar">
+            <div class="tb-left">
+                <button class="tb-menu-btn" id="mobile-menu-btn"><i class="fa-solid fa-bars"></i></button>
+                <span class="tb-title" id="tb-page-title">Dashboard</span>
+            </div>
+            <div class="tb-right">
+                <div class="tb-search-wrap" id="search-wrap">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="global-search" placeholder="Cerca…" autocomplete="off">
+                    <button class="tb-clear-search" id="clear-search" hidden><i class="fa-solid fa-xmark"></i></button>
                 </div>
-            </header>
-
-            <div class="page-scroll">
-
-                <!-- ===== DASHBOARD ===== -->
-                <section id="view-dashboard" class="view active">
-                    <div class="v-hero reveal">
-                        <h1>Buongiorno, <span class="gradient-text">ecco il tuo riepilogo.</span></h1>
-                        <p>Controlla i tuoi voti, compiti e assenze in tempo reale.</p>
-                    </div>
-
-                    <div class="kpi-row">
-                        <div class="kpi reveal" data-delay="0.05">
-                            <div class="kpi-icon blue"><i class="fa-solid fa-star"></i></div>
-                            <div class="kpi-body">
-                                <small>Media Generale</small>
-                                <h2 id="dash-media">--</h2>
-                                <span class="kpi-tag" id="media-status">Caricamento...</span>
-                            </div>
-                        </div>
-                        <div class="kpi reveal" data-delay="0.1">
-                            <div class="kpi-icon dark"><i class="fa-solid fa-pen-ruler"></i></div>
-                            <div class="kpi-body">
-                                <small>Compiti da fare</small>
-                                <h2 id="dash-compiti">--</h2>
-                                <span class="kpi-tag blue-tag">In agenda</span>
-                            </div>
-                        </div>
-                        <div class="kpi reveal" data-delay="0.15">
-                            <div class="kpi-icon red"><i class="fa-solid fa-user-xmark"></i></div>
-                            <div class="kpi-body">
-                                <small>Assenze Totali</small>
-                                <h2 id="dash-assenze">--</h2>
-                                <span class="kpi-tag" id="dash-giustifiche">--</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="split-2 reveal" data-delay="0.2">
-                        <div class="card">
-                            <div class="card-head"><h3>Andamento Recente</h3><button class="pill-btn" onclick="document.querySelector('.s-link[data-target=voti],.mob-item[data-target=voti]').click()">Vedi tutto →</button></div>
-                            <div class="chart-box"><canvas id="dashChart"></canvas></div>
-                        </div>
-                        <div class="card">
-                            <div class="card-head"><h3>Prossimi Impegni</h3></div>
-                            <ul class="event-list" id="dash-agenda"></ul>
-                        </div>
-                    </div>
-
-                    <!-- EXTRA: Mini medie radar -->
-                    <div class="card reveal" data-delay="0.25" style="margin-top:24px">
-                        <div class="card-head"><h3>Panoramica Discipline</h3></div>
-                        <div class="chart-box-sm"><canvas id="radarChart"></canvas></div>
-                    </div>
-                </section>
-
-                <!-- ===== VOTI ===== -->
-                <section id="view-voti" class="view">
-                    <div class="action-row reveal">
-                        <div class="select-wrap">
-                            <select id="filter-materia" class="fancy-select"><option value="all">Tutte le materie</option></select>
-                            <i class="fa-solid fa-chevron-down"></i>
-                        </div>
-                        <button class="btn-sec" id="sort-voti"><i class="fa-solid fa-arrow-up-wide-short"></i> Ordina</button>
-                    </div>
-                    <div class="card reveal mb-24" data-delay="0.05">
-                        <div class="card-head"><h3>Media per Materia</h3></div>
-                        <div class="chart-box"><canvas id="materieChart"></canvas></div>
-                    </div>
-                    <div class="card reveal p-0" data-delay="0.1">
-                        <div class="tbl-wrap">
-                            <table class="tbl">
-                                <thead><tr><th>Data</th><th>Materia</th><th>Voto</th><th>Esito</th></tr></thead>
-                                <tbody id="voti-body"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- ===== AGENDA ===== -->
-                <section id="view-agenda" class="view">
-                    <div class="masonry reveal" id="agenda-container"></div>
-                </section>
-
-                <!-- ===== COMPITI ===== -->
-                <section id="view-compiti" class="view">
-                    <div class="kanban reveal">
-                        <div class="k-col">
-                            <div class="k-head"><h3><i class="fa-regular fa-circle"></i> Da fare <span class="cnt" id="count-todo">0</span></h3></div>
-                            <div class="k-list" id="col-todo"></div>
-                        </div>
-                        <div class="k-col">
-                            <div class="k-head"><h3><i class="fa-solid fa-circle-check text-green"></i> Fatto <span class="cnt green" id="count-done">0</span></h3><button class="btn-ghost" id="clear-done">Svuota</button></div>
-                            <div class="k-list" id="col-done"></div>
-                        </div>
-                        <div class="k-col">
-                            <div class="k-head"><h3><i class="fa-solid fa-book-open"></i> Studio</h3></div>
-                            <div class="k-list" id="col-studio"></div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- ===== ASSENZE ===== -->
-                <section id="view-assenze" class="view">
-                    <div class="card reveal p-0">
-                        <div class="tbl-wrap">
-                            <table class="tbl">
-                                <thead><tr><th>Data</th><th>Tipo</th><th>Dettaglio</th><th>Stato</th></tr></thead>
-                                <tbody id="assenze-body"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- ===== NOTE ===== -->
-                <section id="view-note" class="view">
-                    <div class="notes-wrap reveal" id="note-body"></div>
-                </section>
-
+                <span class="tb-date" id="current-date"></span>
             </div>
-        </main>
-    </div>
+        </header>
 
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+        <!-- VIEWS -->
+        <div class="views-container" id="views-container">
+
+            <!-- ══════════════════════ DASHBOARD ══════════════════════ -->
+            <section class="view is-active" id="view-dashboard">
+                <!-- KPI Row -->
+                <div class="kpi-row" id="kp-row">
+                    <div class="kpi-card" id="kpi-media">
+                        <div class="kpi-icon"><i class="fa-solid fa-star"></i></div>
+                        <div>
+                            <div class="kpi-val" id="dash-media">—</div>
+                            <div class="kpi-label">Media Generale</div>
+                        </div>
+                        <div class="kpi-sparkline"><canvas id="sparkMedia"></canvas></div>
+                    </div>
+                    <div class="kpi-card accent-warn">
+                        <div class="kpi-icon"><i class="fa-solid fa-pen-to-square"></i></div>
+                        <div>
+                            <div class="kpi-val" id="dash-compiti">—</div>
+                            <div class="kpi-label">Compiti Assegnati</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card accent-danger">
+                        <div class="kpi-icon"><i class="fa-solid fa-user-xmark"></i></div>
+                        <div>
+                            <div class="kpi-val" id="dash-assenze">—</div>
+                            <div class="kpi-label">Assenze Totali</div>
+                        </div>
+                        <div class="kpi-sub" id="dash-giustifiche">—</div>
+                    </div>
+                    <div class="kpi-card accent-ok">
+                        <div class="kpi-icon"><i class="fa-solid fa-chart-line"></i></div>
+                        <div>
+                            <div class="kpi-val" id="dash-positivi">—</div>
+                            <div class="kpi-label">Voti Positivi</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts + Prossimi Impegni -->
+                <div class="dash-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Andamento Voti</h3>
+                            <div class="chip-row">
+                                <button class="chip active" data-range="all">Tutto</button>
+                                <button class="chip" data-range="10">Ultimi 10</button>
+                                <button class="chip" data-range="5">Ultimi 5</button>
+                            </div>
+                        </div>
+                        <div class="chart-wrap"><canvas id="dashChart"></canvas></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h3>Prossimi Impegni</h3></div>
+                        <ul class="event-list" id="dash-agenda"></ul>
+                    </div>
+                </div>
+
+                <!-- Riepilogo Materie (barre progresso) -->
+                <div class="card">
+                    <div class="card-header"><h3>Medie per Materia</h3><span class="card-badge" id="badge-materie">—</span></div>
+                    <div class="subject-bars" id="subject-bars"></div>
+                </div>
+            </section>
+
+            <!-- ══════════════════════ VOTI ══════════════════════ -->
+            <section class="view" id="view-voti">
+                <div class="view-toolbar">
+                    <div class="select-wrap">
+                        <i class="fa-solid fa-filter"></i>
+                        <select id="filter-materia" class="styled-select"><option value="all">Tutte le materie</option></select>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn-pill" id="sort-voti"><i class="fa-solid fa-sort-amount-down"></i> Ordina</button>
+                        <button class="btn-pill active" id="view-toggle-voti" data-mode="table"><i class="fa-solid fa-table-list"></i></button>
+                    </div>
+                </div>
+
+                <div class="voti-layout">
+                    <div class="card chart-voti-card">
+                        <div class="card-header"><h3>Media per Materia</h3></div>
+                        <div class="chart-wrap-tall"><canvas id="materieChart"></canvas></div>
+                    </div>
+                    <div class="card radar-card">
+                        <div class="card-header"><h3>Profilo Accademico</h3></div>
+                        <div class="chart-wrap-tall"><canvas id="radarChart"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- Tabella voti -->
+                <div class="card card-table" id="voti-card-table">
+                    <table class="data-table" id="voti-table">
+                        <thead>
+                            <tr>
+                                <th>Data</th><th>Materia</th><th>Voto</th><th>Tipo</th><th>Esito</th>
+                            </tr>
+                        </thead>
+                        <tbody id="voti-body"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ══════════════════════ AGENDA ══════════════════════ -->
+            <section class="view" id="view-agenda">
+                <div class="view-toolbar">
+                    <div class="select-wrap">
+                        <i class="fa-solid fa-tag"></i>
+                        <select id="filter-tipo-agenda" class="styled-select">
+                            <option value="all">Tutti i tipi</option>
+                            <option value="verifica">Verifiche</option>
+                            <option value="compito">Compiti</option>
+                            <option value="evento">Altri</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="agenda-grid" id="agenda-container"></div>
+            </section>
+
+            <!-- ══════════════════════ COMPITI (KANBAN) ══════════════════════ -->
+            <section class="view" id="view-compiti">
+                <div class="view-toolbar">
+                    <span class="view-toolbar-info"><i class="fa-solid fa-circle-info"></i> Clicca un compito per segnarlo come completato</span>
+                    <button class="btn-pill danger-outline" id="clear-done"><i class="fa-solid fa-broom"></i> Svuota completati</button>
+                </div>
+                <div class="kanban" id="kanban-board">
+                    <div class="kanban-col">
+                        <div class="kanban-col-header">
+                            <h3><span class="col-dot dot-orange"></span>Da Completare</h3>
+                            <span class="col-count" id="count-todo">0</span>
+                        </div>
+                        <div class="kanban-cards" id="col-todo"></div>
+                    </div>
+                    <div class="kanban-col">
+                        <div class="kanban-col-header">
+                            <h3><span class="col-dot dot-green"></span>Completati</h3>
+                            <span class="col-count" id="count-done">0</span>
+                        </div>
+                        <div class="kanban-cards" id="col-done"></div>
+                    </div>
+                    <div class="kanban-col">
+                        <div class="kanban-col-header">
+                            <h3><span class="col-dot dot-blue"></span>Materiale Studio</h3>
+                        </div>
+                        <div class="kanban-cards" id="col-studio"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ══════════════════════ ASSENZE ══════════════════════ -->
+            <section class="view" id="view-assenze">
+                <div class="assenze-summary" id="assenze-summary">
+                    <div class="assum-card"><i class="fa-solid fa-calendar-xmark"></i><div><strong id="sum-tot">0</strong><small>Totali</small></div></div>
+                    <div class="assum-card ok"><i class="fa-solid fa-circle-check"></i><div><strong id="sum-ok">0</strong><small>Giustificate</small></div></div>
+                    <div class="assum-card alert"><i class="fa-solid fa-circle-exclamation"></i><div><strong id="sum-ng">0</strong><small>Da Giustificare</small></div></div>
+                </div>
+                <div class="card card-table">
+                    <table class="data-table">
+                        <thead><tr><th>Data</th><th>Tipo</th><th>Dettaglio</th><th>Stato</th></tr></thead>
+                        <tbody id="assenze-body"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ══════════════════════ NOTE ══════════════════════ -->
+            <section class="view" id="view-note">
+                <div class="note-grid" id="note-body"></div>
+            </section>
+
+        </div><!-- /views-container -->
+    </div><!-- /main-wrap -->
+
+    <!-- BOTTOM NAV (solo mobile) -->
+    <nav class="bottom-nav" id="bottom-nav">
+        <a href="#" class="bn-item is-active" data-view="dashboard"><i class="fa-solid fa-chart-pie"></i><span>Home</span></a>
+        <a href="#" class="bn-item" data-view="voti"><i class="fa-solid fa-star-half-stroke"></i><span>Voti</span></a>
+        <a href="#" class="bn-item" data-view="agenda"><i class="fa-regular fa-calendar-days"></i><span>Agenda</span></a>
+        <a href="#" class="bn-item" data-view="compiti"><i class="fa-solid fa-list-check"></i><span>Compiti</span></a>
+        <a href="#" class="bn-item" data-view="assenze"><i class="fa-solid fa-user-xmark"></i><span>Assenze</span></a>
+    </nav>
+
+</div><!-- /app-screen -->
+
+<!-- MOBILE SIDEBAR OVERLAY -->
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
