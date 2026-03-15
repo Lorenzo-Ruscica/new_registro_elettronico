@@ -514,11 +514,11 @@ function renderVotiTable(voti) {
             
         tbody.innerHTML += `
         <tr data-materia="${v.materia}">
-            <td style="color:var(--c-muted);font-size:.82rem">${v.data}</td>
-            <td style="font-weight:600">${nomeMateria}</td>
-            <td><div class="voto-chip ${cls}">${v.voto}</div></td>
-            <td><span class="badge badge-muted">${v.tipo || '—'}</span></td>
-            <td>${esito}</td>
+            <td class="col-data">${v.data}</td>
+            <td class="col-materia">${nomeMateria}</td>
+            <td class="col-voto"><div class="voto-chip ${cls}">${v.voto}</div></td>
+            <td class="col-tipo"><span class="badge badge-muted">${v.tipo || '—'}</span></td>
+            <td class="col-esito">${esito}</td>
         </tr>`;
     });
 }
