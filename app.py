@@ -1,38 +1,11 @@
 from flask import Flask, request, jsonify, render_template, session
 from MastercomAPI import MastercomAPI
 import os
-from datetime import timedelta
-from concurrent.futures import ThreadPoolExecutor
-import hashlib
-import json
-import time
 
 app = Flask(__name__)
+# Usiamo una chiave statica su Vercel, altrimenti a ogni richiesta serverless
+# genera un nuovo os.urandom(24) e annulla la sessione dell'utente!
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "chiave_super_segreta_statica_vercel_123")
-app.permanent_session_lifetime = timedelta(days=30)
-
-CACHE_DIR = "_cache"
-if not os.path.exists(CACHE_DIR):
-    os.makedirs(CACHE_DIR)
-
-def get_user_cache_path(username):
-    h = hashlib.md5(username.encode()).hexdigest()
-    return os.path.join(CACHE_DIR, f"data_{h}.json")
-
-def save_cache(username, data):
-    path = get_user_cache_path(username)
-    with open(path, "w") as f:
-        json.dump({"timestamp": time.time(), "data": data}, f)
-
-def load_cache(username):
-    path = get_user_cache_path(username)
-    if os.path.exists(path):
-        with open(path, "r") as f:
-            cache = json.load(f)
-            # Cache valida per 15 minuti
-            if time.time() - cache["timestamp"] < 900:
-                return cache["data"]
-    return None
 
 @app.route("/")
 def index():
@@ -44,16 +17,16 @@ def service_worker():
 
 @app.route("/api/login", methods=["POST"])
 def login():
-    session.permanent = True
     data = request.json
     user = data.get("username")
     password = data.get("password")
     
     api = MastercomAPI(user, password)
     if api.login():
+        # Salviamo in sessione le credenziali per le successive richieste
+        # (In produzione si userebbero i token o i cookie estratti)
         session['user'] = user
         session['password'] = password
-        session['api_session'] = api.get_session_data()
         return jsonify({"success": True, "message": "Login effettuato!"})
     else:
         return jsonify({"success": False, "message": "Credenziali non valide o login fallito."})
@@ -62,52 +35,30 @@ def login():
 def get_all_data():
     if 'user' not in session or 'password' not in session:
         return jsonify({"error": "Non autorizzato"}), 401
+        
+    api = MastercomAPI(session['user'], session['password'])
+    if not api.login():
+        return jsonify({"error": "Sessione scaduta"}), 401
+        
+    # Parallelizzarli renderebbe tutto più veloce, ma lo facciamo in sequenza
+    voti = api.prendi_voti()
+    agenda = api.get_agenda()
+    argomenti = api.get_argomenti_compiti()
+    assenze = api.get_assenze()
+    note = api.get_note()
+    orario = api.get_orario()
+    corsi = api.get_corsi()
     
-    username = session['user']
-    password = session['password']
-    
-    # 1. Prova a caricare dalla cache locale (ultra veloce)
-    cached_data = load_cache(username)
-    if cached_data:
-        return jsonify(cached_data)
-
-    api = MastercomAPI(username, password)
-    
-    # 2. Prova a riutilizzare la sessione esistente
-    api.set_session_data(session.get('api_session'))
-    
-    # Se la sessione non è valida o non esiste, facciamo il login
-    if not api.is_logged_in():
-        if not api.login():
-            return jsonify({"error": "Sessione scaduta"}), 401
-        # Aggiorniamo la sessione Flask con i nuovi cookie
-        session['api_session'] = api.get_session_data()
-
-    # 3. Recupero dati in PARALLELO (molto più veloce del sequenziale)
-    with ThreadPoolExecutor(max_workers=7) as executor:
-        f_voti = executor.submit(api.prendi_voti)
-        f_agenda = executor.submit(api.get_agenda)
-        f_argomenti = executor.submit(api.get_argomenti_compiti)
-        f_assenze = executor.submit(api.get_assenze)
-        f_note = executor.submit(api.get_note)
-        f_orario = executor.submit(api.get_orario)
-        f_corsi = executor.submit(api.get_corsi)
-
-        response_data = {
-            "utente": api.data_session.get("user_info", {}),
-            "voti": f_voti.result(),
-            "agenda": f_agenda.result(),
-            "argomenti": f_argomenti.result(),
-            "assenze": f_assenze.result(),
-            "note": f_note.result(),
-            "orario": f_orario.result(),
-            "corsi": f_corsi.result()
-        }
-
-    # Salviamo in cache per la prossima volta
-    save_cache(username, response_data)
-    
-    return jsonify(response_data)
+    return jsonify({
+        "utente": api.data_session.get("user_info", {}),
+        "voti": voti,
+        "agenda": agenda,
+        "argomenti": argomenti,
+        "assenze": assenze,
+        "note": note,
+        "orario": orario,
+        "corsi": corsi
+    })
 
 @app.route("/api/corsi/toggle", methods=["POST"])
 def toggle_corso():

@@ -16,28 +16,6 @@ class MastercomAPI:
         })
         self.data_session = {}
 
-    def get_session_data(self):
-        """Ritorna i cookie e i dati necessari per saltare il login."""
-        return {
-            "cookies": self.session.cookies.get_dict(),
-            "data_session": self.data_session
-        }
-
-    def set_session_data(self, data):
-        """Ripristina una sessione esistente."""
-        if data:
-            self.session.cookies.update(data.get("cookies", {}))
-            self.data_session = data.get("data_session", {})
-
-    def is_logged_in(self):
-        """Verifica se la sessione è ancora valida caricando una pagina leggera."""
-        if not self.data_session: return False
-        try:
-            res = self.session.get(self.url, timeout=5)
-            return "form_login" not in res.text
-        except:
-            return False
-
     def login(self):
         payload = {
             "user": self.user,
@@ -487,7 +465,7 @@ if __name__ == "__main__":
         print("\n" + "="*60)
         print("🕒 ORARIO")
         print("="*60)
-        orario = registro.get_orario() or []
+        orario = registro.get_orario()
         if not orario:
             print("Nessun orario trovato.")
         for o in orario[:10]: # Print first 10
@@ -496,7 +474,7 @@ if __name__ == "__main__":
         print("\n" + "="*60)
         print("🏫 CORSI")
         print("="*60)
-        corsi = registro.get_corsi() or []
+        corsi = registro.get_corsi()
         if not corsi:
             print("Nessun corso trovato.")
         for c in corsi[:10]: # Print first 10
